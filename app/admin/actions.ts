@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { config } from "@/lib/config";
 import { clearAdminSession, isAdmin, requireAdmin, setAdminSession } from "@/lib/auth";
-import { randomPassword } from "@/lib/format";
+import { randomPassword, randomToken } from "@/lib/format";
 import { adminResetProgress, adminSkipQuestion } from "@/lib/game";
 import { setSetting } from "@/lib/settings";
 import { buildTeams, generatePlaceholderQuestions, TeamInput } from "@/lib/setup";
@@ -101,6 +101,14 @@ export async function resetAllProgress() {
   await requireAdmin();
   const teams = await db.team.findMany({ select: { id: true } });
   for (const t of teams) await adminResetProgress(t.id);
+  revalidatePath("/admin", "layout");
+}
+
+/** Gives all 12 stations new secret codes. Old posters/printouts stop working; team routes are unchanged. */
+export async function regenerateQrCodes() {
+  await requireAdmin();
+  const qrs = await db.qrCode.findMany({ select: { id: true } });
+  await db.$transaction(qrs.map((q) => db.qrCode.update({ where: { id: q.id }, data: { token: randomToken() } })));
   revalidatePath("/admin", "layout");
 }
 

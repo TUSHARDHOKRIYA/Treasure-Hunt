@@ -1,8 +1,8 @@
-import { Download, FileSpreadsheet, RefreshCcw, RotateCcw, Save } from "lucide-react";
+import { Download, FileSpreadsheet, QrCode, RefreshCcw, RotateCcw, Save } from "lucide-react";
 import { db } from "@/lib/db";
 import { config } from "@/lib/config";
 import { SEQUENCES } from "@/lib/schedule";
-import { importQuestions, importTeams, regeneratePlaceholders, resetAllProgress, updateTrack } from "../../actions";
+import { importQuestions, importTeams, regeneratePlaceholders, regenerateQrCodes, resetAllProgress, updateTrack } from "../../actions";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { ImportForm } from "@/components/admin/ImportForm";
 
@@ -116,7 +116,17 @@ export default async function SetupPage() {
 
       <section className="card border-bad/30 p-5">
         <h2 className="font-semibold text-bad">Danger zone</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <p className="mt-1 text-sm text-ink-400">
+          Regenerate QR codes once before the event (after testing) so test codes can&apos;t be reused, then print the posters.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <ActionButton
+            action={regenerateQrCodes}
+            confirmText="Give all 12 QR stations NEW codes? Every printed or downloaded QR stops working — reprint the posters from the QR codes page afterwards. Team routes and stations stay the same."
+            className="btn h-12 border border-warn/40 bg-warn/10 text-sm text-warn"
+          >
+            <QrCode className="h-4 w-4" /> Regenerate QR codes
+          </ActionButton>
           <ActionButton
             action={regeneratePlaceholders}
             confirmText="Overwrite ALL questions with placeholder questions?"
