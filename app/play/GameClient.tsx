@@ -60,11 +60,12 @@ export function GameClient({ initial }: { initial: TeamState }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       }).catch(() => null);
-      const data: ScanResponse = res?.ok ? await res.json() : { result: "INVALID" };
+      const data: ScanResponse & { state?: TeamState } = res?.ok ? await res.json() : { result: "INVALID" };
       navigator.vibrate?.(data.result === "OK" ? 60 : [30, 50, 30]);
       setScanResult(data);
       setScanBusy(false);
-      refresh();
+      if (data.state) setState(data.state);
+      else refresh();
     },
     [refresh],
   );
@@ -111,7 +112,8 @@ export function GameClient({ initial }: { initial: TeamState }) {
                 setOverlay(r.trackCleared ? { kind: "cleared", finished: r.finished } : { kind: "correct" });
                 if (!r.trackCleared) setTimeout(() => setOverlay(null), 900);
               }
-              refresh();
+              if (r.state) setState(r.state);
+              else refresh();
             }}
           />
         )}
@@ -375,7 +377,9 @@ function TravelView({ state, onScan }: { state: TeamState; onScan: () => void })
   );
 }
 
-function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: AnswerResponse) => void }) {
+type AnswerWithState = AnswerResponse & { state?: TeamState };
+
+function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: AnswerWithState) => void }) {
   const cur = state.current!;
   const q = state.question!;
   const c = cur.track.color;
@@ -403,7 +407,7 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answer }),
     }).catch(() => null);
-    const data: AnswerResponse = res?.ok ? await res.json() : { status: "stale" };
+    const data: AnswerWithState = res?.ok ? await res.json() : { status: "stale" };
     setBusy(false);
     if (data.status === "wrong" || data.status === "cooldown") {
       setWrong((w) => w + 1);

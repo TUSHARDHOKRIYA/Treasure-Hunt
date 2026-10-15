@@ -32,11 +32,14 @@ const toInfo = (t: { id: number; name: string; location: string; color: string }
 });
 
 export async function getTeamState(teamId: number): Promise<TeamState | null> {
+  // One joined query: every extra round trip to the database adds latency.
   const team = await db.team.findUnique({
+    relationLoadStrategy: "join",
     where: { id: teamId },
     include: {
       members: { orderBy: { id: "asc" } },
       assignments: { include: { track: true, qrCode: true }, orderBy: { stage: "asc" } },
+      questions: { select: { trackId: true, slot: true, prompt: true } },
     },
   });
   if (!team) return null;
@@ -67,9 +70,7 @@ export async function getTeamState(teamId: number): Promise<TeamState | null> {
 
   let question: TeamState["question"] = null;
   if (phase === "question" && curA) {
-    const q = await db.question.findUnique({
-      where: { teamId_trackId_slot: { teamId, trackId: curA.trackId, slot: team.questionNo } },
-    });
+    const q = team.questions.find((x) => x.trackId === curA.trackId && x.slot === team.questionNo);
     question = { slot: team.questionNo, prompt: q?.prompt ?? "Question missing — please call an organiser." };
   }
 
@@ -149,13 +150,15 @@ export function extractToken(raw: string): string {
 
 export async function scanQr(teamId: number, rawToken: string): Promise<ScanResponse> {
   const token = extractToken(rawToken);
-  const team = await db.team.findUnique({
-    where: { id: teamId },
-    include: { assignments: { include: { qrCode: true } } },
-  });
+  const [team, qr] = await Promise.all([
+    db.team.findUnique({
+      relationLoadStrategy: "join",
+      where: { id: teamId },
+      include: { assignments: { include: { qrCode: true } } },
+    }),
+    token ? db.qrCode.findUnique({ relationLoadStrategy: "join", where: { token }, include: { track: true } }) : null,
+  ]);
   if (!team) return { result: "INVALID" };
-
-  const qr = token ? await db.qrCode.findUnique({ where: { token }, include: { track: true } }) : null;
   const log = async (result: ScanResult) => {
     await db.scan.create({ data: { teamId, qrCodeId: qr?.id ?? null, result } });
     return result;
@@ -228,7 +231,11 @@ export type AnswerResponse =
   | { status: "stale" };
 
 export async function submitAnswer(teamId: number, answer: string): Promise<AnswerResponse> {
-  const team = await db.team.findUnique({ where: { id: teamId } });
+  const team = await db.team.findUnique({
+    relationLoadStrategy: "join",
+    where: { id: teamId },
+    include: { questions: { select: { id: true, trackId: true, slot: true, answers: true } } },
+  });
   if (!team || team.finishedAt || team.questionNo === 0) return { status: "stale" };
 
   if (team.lastWrongAt && config.wrongCooldownSec > 0) {
@@ -237,21 +244,19 @@ export async function submitAnswer(teamId: number, answer: string): Promise<Answ
   }
 
   const trackId = parseOrder(team.trackOrder)[team.stage];
-  const q = await db.question.findUnique({
-    where: { teamId_trackId_slot: { teamId, trackId, slot: team.questionNo } },
-  });
+  const q = team.questions.find((x) => x.trackId === trackId && x.slot === team.questionNo);
   if (!q) return { status: "stale" };
 
   const correct = isCorrect(answer, q.answers);
-  await db.attempt.create({ data: { teamId, questionId: q.id, answer: answer.slice(0, 200), correct } });
+  const logAttempt = db.attempt.create({ data: { teamId, questionId: q.id, answer: answer.slice(0, 200), correct } });
 
   if (!correct) {
     const now = new Date();
-    await db.team.update({ where: { id: teamId }, data: { lastWrongAt: now } });
+    await Promise.all([logAttempt, db.team.update({ where: { id: teamId }, data: { lastWrongAt: now } })]);
     return { status: "wrong", cooldownUntil: config.wrongCooldownSec > 0 ? now.getTime() + config.wrongCooldownSec * 1000 : null };
   }
 
-  const r = await advance(team);
+  const [r] = await Promise.all([advance(team), logAttempt]);
   if (!r.advanced) return { status: "stale" };
   return { status: "correct", trackCleared: r.trackCleared, finished: r.finished };
 }
