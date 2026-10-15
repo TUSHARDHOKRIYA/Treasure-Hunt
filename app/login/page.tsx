@@ -1,0 +1,33 @@
+import { Suspense } from "react";
+import { LoginForm } from "./LoginForm";
+import { Logo } from "@/components/Logo";
+import { config } from "@/lib/config";
+
+export default function LoginPage() {
+  return (
+    <main className="bg-hunt flex min-h-dvh flex-col px-5 pt-[max(2.5rem,env(safe-area-inset-top))]">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+        <div className="animate-rise flex flex-col items-center pt-6 text-center">
+          <div className="relative">
+            <div className="absolute inset-0 -z-10 rounded-full bg-gold-500/30 blur-2xl" />
+            <Logo size={84} />
+          </div>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[.3em] text-gold-400">Treasure Hunt</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight">The Hunt Begins</h1>
+          <p className="mt-3 max-w-xs text-ink-300">Four tracks. Sixteen questions. One clock. Sign in with your team credentials.</p>
+        </div>
+
+        <div className="animate-rise mt-10 [animation-delay:.1s]">
+          <Suspense>
+            <LoginForm />
+          </Suspense>
+        </div>
+
+        <p className="safe-bottom mt-auto pt-10 text-center text-xs text-ink-500">
+          {config.timerStart === "login" ? "Your clock starts the moment you sign in." : "Your clock starts once attendance is marked."} Every
+          teammate can sign in on their own phone.
+        </p>
+      </div>
+    </main>
+  );
+}

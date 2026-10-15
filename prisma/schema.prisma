@@ -1,0 +1,121 @@
+// PostgreSQL (Supabase). DATABASE_URL = pooled connection used by the app,
+// DIRECT_URL = direct connection used by `prisma db push`.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Team {
+  id           Int         @id @default(autoincrement())
+  code         String      @unique
+  name         String
+  passwordHash String
+  seqGroup     Int         // 0..3, which Latin-square row
+  trackOrder   String      // e.g. "1,2,4,3"
+  startedAt    DateTime?
+  attendanceAt DateTime?
+  finishedAt   DateTime?
+  stage        Int         @default(0) // index into trackOrder; 4 = finished
+  questionNo   Int         @default(0) // 0 = must scan QR, 1..4 = answering
+  penaltySec   Int         @default(0)
+  lastWrongAt  DateTime?
+  members      Member[]
+  assignments  TeamTrack[]
+  questions    Question[]
+  attempts     Attempt[]
+  scans        Scan[]
+}
+
+model Member {
+  id       Int       @id @default(autoincrement())
+  teamId   Int
+  team     Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name     String
+  rollNo   String    @default("")
+  phone    String    @default("")
+  present  Boolean   @default(false)
+  markedAt DateTime?
+}
+
+model Track {
+  id          Int         @id
+  name        String
+  location    String
+  color       String
+  qrCodes     QrCode[]
+  assignments TeamTrack[]
+  questions   Question[]
+}
+
+model QrCode {
+  id          Int         @id @default(autoincrement())
+  trackId     Int
+  track       Track       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  station     String      // "A" | "B" | "C"
+  token       String      @unique
+  assignments TeamTrack[]
+  scans       Scan[]
+
+  @@unique([trackId, station])
+}
+
+model TeamTrack {
+  id          Int       @id @default(autoincrement())
+  teamId      Int
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  trackId     Int
+  track       Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  stage       Int       // 0..3
+  qrCodeId    Int
+  qrCode      QrCode    @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  enteredAt   DateTime?
+  completedAt DateTime?
+
+  @@unique([teamId, trackId])
+  @@unique([teamId, stage])
+}
+
+model Question {
+  id       Int       @id @default(autoincrement())
+  teamId   Int
+  team     Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  trackId  Int
+  track    Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  slot     Int       // 1..4 (4 = riddle to next track / final question)
+  prompt   String
+  answers  String    // accepted answers separated by "|"
+  attempts Attempt[]
+
+  @@unique([teamId, trackId, slot])
+}
+
+model Attempt {
+  id         Int      @id @default(autoincrement())
+  teamId     Int
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer     String
+  correct    Boolean
+  createdAt  DateTime @default(now())
+}
+
+model Scan {
+  id        Int      @id @default(autoincrement())
+  teamId    Int
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  qrCodeId  Int?
+  qrCode    QrCode?  @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+  result    String
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
+}

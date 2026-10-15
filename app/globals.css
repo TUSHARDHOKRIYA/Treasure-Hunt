@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #07090f;
+  color: #f1f3f8;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+/* Ambient background: gold glow + faint map grid */
+.bg-hunt {
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(245, 183, 0, 0.16), transparent 60%),
+    radial-gradient(80% 50% at 100% 100%, rgba(46, 196, 182, 0.08), transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0 / 28px 28px,
+    #07090f;
+}
+
+@layer components {
+  .card {
+    @apply rounded-3xl border border-ink-700/70 bg-ink-900/80 backdrop-blur-md;
+  }
+
+  .btn {
+    @apply inline-flex h-14 w-full select-none items-center justify-center gap-2 rounded-2xl px-5 text-base font-semibold transition active:scale-[.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-gradient-to-b from-gold-400 to-gold-500 text-ink-950 shadow-glow;
+  }
+  .btn-ghost {
+    @apply btn border border-ink-600 bg-ink-850 text-ink-100 hover:bg-ink-800;
+  }
+
+  .input {
+    @apply h-14 w-full rounded-2xl border border-ink-600 bg-ink-850 px-4 text-lg text-ink-100 outline-none transition placeholder:text-ink-500 focus:border-gold-400 focus:ring-4 focus:ring-gold-400/15;
+  }
+
+  .label {
+    @apply mb-2 block text-xs font-semibold uppercase tracking-[.14em] text-ink-400;
+  }
+}
+
+/* Scanner video fills its frame */
+#qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Confetti for the finish screen */
+.confetti i {
+  position: absolute;
+  top: -10px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: fall linear infinite;
+  opacity: 0.9;
+}
+@keyframes fall {
+  to {
+    transform: translateY(110vh) rotate(720deg);
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
