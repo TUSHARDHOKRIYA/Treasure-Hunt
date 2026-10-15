@@ -23,8 +23,11 @@ export default async function QrPage() {
             (set <span className="font-mono">PUBLIC_BASE_URL</span> to your live URL before printing).
           </p>
         </div>
-        <div className="md:w-48">
+        <div className="flex flex-col gap-2 md:w-48">
           <PrintButton />
+          <a href="/admin/test-kit" className="btn-ghost h-12 text-sm">
+            Test kit
+          </a>
         </div>
       </div>
 
