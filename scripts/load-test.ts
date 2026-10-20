@@ -46,7 +46,8 @@ async function call(ep: string, cookie: string | null, body?: unknown) {
     return { res, json };
   } catch (e) {
     samples.push({ ep, ms: Date.now() - t, ok: false, status });
-    errors.push(`${ep} → ${(e as Error).message}`);
+    const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+    errors.push(`${ep} → ${(e as Error).message} (${cause?.code ?? cause?.message ?? "no cause"}) after ${Date.now() - t} ms`);
     return { res: null, json: null };
   }
 }
@@ -84,7 +85,11 @@ async function playTeam(code: string, team: Awaited<ReturnType<typeof loadTeams>
   let wrongMcqDone = false;
   while (guard++ < 80) {
     s = (await call("/api/state", main)).json;
-    if (!s || s.phase === "finished") break;
+    if (!s?.phase) {
+      await sleep(1000); // failed request (already recorded) — retry like a phone would
+      continue;
+    }
+    if (s.phase === "finished") break;
     if (STOP_AT === "final" && s.stage === 3 && s.questionNo === 3) break;
     if (s.phase === "travel") {
       const a = team.assignments.find((x) => x.stage === s.stage)!;
@@ -145,7 +150,14 @@ async function main() {
 
   console.log(`Rehearsal: ${teams.length} teams × ${PHONES} phones against ${BASE}`);
   const started = Date.now();
-  const results = await Promise.all(teams.map((t, i) => playTeam(t.code, t, i)));
+  const results = await Promise.all(
+    teams.map((t, i) =>
+      playTeam(t.code, t, i).catch((e) => {
+        errors.push(`${t.code}: crashed — ${(e as Error).message}`);
+        return "crashed";
+      }),
+    ),
+  );
   const secs = Math.round((Date.now() - started) / 1000);
 
   const finished = results.filter((r) => r === "finished").length;
