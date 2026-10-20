@@ -12,3 +12,4 @@ next-env.d.ts
 vercel.env
 qr-codes/
 qr-codes.zip
+exports/
