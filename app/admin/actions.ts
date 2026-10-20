@@ -15,7 +15,10 @@ import { buildTeams, generateQuestions, TeamInput } from "@/lib/setup";
 /* ---------- auth ---------- */
 
 export async function adminLogin(_: string | null, form: FormData): Promise<string | null> {
-  if (form.get("username") !== config.adminUsername || form.get("password") !== config.adminPassword) {
+  // Username ignores case and spaces (phones auto-capitalise "admin" to "Admin"); password must match exactly.
+  const username = String(form.get("username") ?? "").trim().toLowerCase();
+  const password = String(form.get("password") ?? "").trim();
+  if (username !== config.adminUsername.trim().toLowerCase() || password !== config.adminPassword) {
     return "Wrong username or password.";
   }
   await setAdminSession();

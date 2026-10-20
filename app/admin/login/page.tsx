@@ -19,11 +19,29 @@ export default function AdminLoginPage() {
         </div>
         <div>
           <label className="label" htmlFor="username">Username</label>
-          <input id="username" name="username" className="input" autoComplete="username" required />
+          <input
+            id="username"
+            name="username"
+            className="input"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+          />
         </div>
         <div>
           <label className="label" htmlFor="password">Password</label>
-          <input id="password" name="password" type="password" className="input" autoComplete="current-password" required />
+          <input
+            id="password"
+            name="password"
+            type="password"
+            className="input"
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            required
+          />
         </div>
         {error && <p className="rounded-xl bg-bad/10 px-4 py-3 text-sm text-bad">{error}</p>}
         <button className="btn-primary" disabled={pending}>
