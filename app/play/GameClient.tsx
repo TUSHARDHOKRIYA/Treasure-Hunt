@@ -8,6 +8,7 @@ import {
   Footprints,
   KeyRound,
   Loader2,
+  Lock,
   LogOut,
   MapPin,
   QrCode,
@@ -24,7 +25,7 @@ import { TrackProgress } from "@/components/TrackProgress";
 import { QrScanner } from "@/components/QrScanner";
 import { ScanResultView } from "@/components/ScanResultView";
 
-type Overlay = null | { kind: "correct" } | { kind: "cleared"; finished: boolean };
+type Overlay = null | { kind: "correct" } | { kind: "cleared"; finished: boolean } | { kind: "takeaway"; text: string; finished: boolean };
 
 export function GameClient({ initial }: { initial: TeamState }) {
   const router = useRouter();
@@ -42,7 +43,7 @@ export function GameClient({ initial }: { initial: TeamState }) {
 
   // Keep all teammates' phones in sync.
   useEffect(() => {
-    const id = setInterval(refresh, 5000);
+    const id = setInterval(() => document.visibilityState === "visible" && refresh(), 8000);
     const onVis = () => document.visibilityState === "visible" && refresh();
     document.addEventListener("visibilitychange", onVis);
     return () => {
@@ -109,8 +110,11 @@ export function GameClient({ initial }: { initial: TeamState }) {
             onResult={(r) => {
               if (r.status === "correct") {
                 navigator.vibrate?.(60);
-                setOverlay(r.trackCleared ? { kind: "cleared", finished: r.finished } : { kind: "correct" });
-                if (!r.trackCleared) setTimeout(() => setOverlay(null), 900);
+                if (r.takeaway) setOverlay({ kind: "takeaway", text: r.takeaway, finished: r.finished });
+                else {
+                  setOverlay(r.trackCleared ? { kind: "cleared", finished: r.finished } : { kind: "correct" });
+                  if (!r.trackCleared) setTimeout(() => setOverlay(null), 900);
+                }
               }
               if (r.state) setState(r.state);
               else refresh();
@@ -174,15 +178,35 @@ export function GameClient({ initial }: { initial: TeamState }) {
         </div>
       )}
 
+      {overlay?.kind === "takeaway" && (
+        <Sheet onClose={() => setOverlay(null)}>
+          <div className="flex flex-col items-center text-center">
+            <div className="animate-pop mb-5 grid h-20 w-20 place-items-center rounded-full bg-good text-ink-950 shadow-[0_0_60px_rgba(52,211,153,.4)]">
+              <Check className="h-10 w-10" strokeWidth={3} />
+            </div>
+            <h2 className="text-2xl font-bold">Correct!</h2>
+            <div className="mt-5 w-full rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-left">
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-sky-300">
+                <Sparkles className="h-4 w-4" /> Your IEEE SB VU takeaway
+              </p>
+              <p className="mt-2 leading-relaxed text-ink-100">{overlay.text}</p>
+            </div>
+          </div>
+          <button className="btn-primary mt-7" onClick={() => setOverlay(null)}>
+            {overlay.finished ? <>See your result <Trophy className="h-5 w-5" /></> : <>Next question <ArrowRight className="h-5 w-5" /></>}
+          </button>
+        </Sheet>
+      )}
+
       {overlay?.kind === "cleared" && !overlay.finished && (
         <Sheet onClose={() => setOverlay(null)}>
           <div className="flex flex-col items-center text-center">
             <div className="animate-pop mb-5 grid h-20 w-20 place-items-center rounded-full bg-gold-400/15 text-gold-400 ring-8 ring-gold-400/20">
               <Sparkles className="h-10 w-10" />
             </div>
-            <h2 className="text-2xl font-bold">Track cleared!</h2>
+            <h2 className="text-2xl font-bold">Arena cleared!</h2>
             <p className="mt-2 text-ink-300">
-              The riddle is solved. {state.current ? <>Head to <b style={{ color: state.current.track.color }}>{state.current.track.name}</b>.</> : "Head to your next track."}
+              The riddle is solved. {state.current ? <>Head to <b style={{ color: state.current.track.color }}>{state.current.track.name}</b>.</> : "Head to your next arena."}
             </p>
           </div>
           <button className="btn-primary mt-7" onClick={() => setOverlay(null)}>
@@ -321,19 +345,21 @@ function TravelView({ state, onScan }: { state: TeamState; onScan: () => void })
         <p className="text-xs font-semibold uppercase tracking-[.2em] text-gold-400">
           {cur.isFirst ? "Your first destination" : "Next destination"}
         </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">{cur.isFirst ? "Set sail!" : "On to the next track"}</h1>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">{cur.isFirst ? "Set sail!" : "On to the next arena"}</h1>
       </div>
 
       <div className="relative overflow-hidden rounded-3xl border bg-ink-900" style={{ borderColor: `${c}55` }}>
         <div className="absolute inset-x-0 top-0 h-36" style={{ background: `radial-gradient(120% 100% at 0% 0%, ${c}40, transparent 70%)` }} />
         <div className="relative p-6">
           <span className="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider" style={{ background: `${c}26`, color: c }}>
-            Track {state.stage + 1} of 4
+            Arena {state.stage + 1} of 4
           </span>
           <h2 className="mt-4 text-4xl font-bold leading-tight tracking-tight">{cur.track.name}</h2>
-          <p className="mt-2 flex items-center gap-2 text-ink-300">
-            <MapPin className="h-4 w-4 shrink-0" style={{ color: c }} /> {cur.track.location}
-          </p>
+          {cur.track.location && (
+            <p className="mt-2 flex items-center gap-2 text-ink-300">
+              <MapPin className="h-4 w-4 shrink-0" style={{ color: c }} /> {cur.track.location}
+            </p>
+          )}
 
           {cur.station && (
             <div className="mt-6 flex items-center gap-4 rounded-2xl border border-ink-700 bg-ink-950/60 p-4">
@@ -384,6 +410,7 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
   const q = state.question!;
   const c = cur.track.color;
   const isLastTrack = state.stage === 3;
+  const isMcq = q.kind === "mcq";
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [wrong, setWrong] = useState(0);
@@ -391,16 +418,22 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
   const [now, setNow] = useState(Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // A teammate's wrong answer on another phone locks this phone too.
+  useEffect(() => {
+    if (state.cooldownUntil) setCooldownUntil(state.cooldownUntil);
+  }, [state.cooldownUntil]);
+
   useEffect(() => {
     if (!cooldownUntil) return;
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [cooldownUntil]);
-  const waitSec = cooldownUntil ? Math.ceil((cooldownUntil - now) / 1000) : 0;
+  const waitSec = cooldownUntil ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0;
+  const locked = waitSec > 0;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!answer.trim() || waitSec > 0) return;
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!answer.trim() || locked || busy) return;
     setBusy(true);
     const res = await fetch("/api/answer", {
       method: "POST",
@@ -414,12 +447,14 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
       setCooldownUntil(data.cooldownUntil);
       setNow(Date.now());
       navigator.vibrate?.([30, 50, 30]);
-      inputRef.current?.select();
+      if (isMcq) setAnswer("");
+      else inputRef.current?.select();
     }
     onResult(data);
   }
 
-  const kind = q.slot < 4 ? "question" : isLastTrack ? "final" : "riddle";
+  const kind = q.category === "ieee" ? "ieee" : q.slot < 4 ? "question" : isLastTrack ? "final" : "riddle";
+  const highlight = kind !== "question";
 
   return (
     <div className="animate-rise space-y-5">
@@ -437,53 +472,141 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
       </div>
 
       <div
-        className={`relative overflow-hidden rounded-3xl border p-6 ${kind === "question" ? "border-ink-700 bg-ink-900/80" : "border-gold-400/40 bg-gradient-to-br from-gold-500/15 to-ink-900"}`}
+        className={`relative overflow-hidden rounded-3xl border p-6 ${
+          kind === "ieee"
+            ? "border-sky-400/40 bg-gradient-to-br from-sky-500/15 to-ink-900"
+            : highlight
+              ? "border-gold-400/40 bg-gradient-to-br from-gold-500/15 to-ink-900"
+              : "border-ink-700 bg-ink-900/80"
+        }`}
       >
-        <p className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] ${kind === "question" ? "text-ink-400" : "text-gold-400"}`}>
-          {kind === "question" ? (
-            <>Question {q.slot}</>
-          ) : kind === "riddle" ? (
-            <>
-              <KeyRound className="h-4 w-4" /> The riddle · leads to your next track
-            </>
-          ) : (
-            <>
-              <Trophy className="h-4 w-4" /> Final question · stops the clock
-            </>
-          )}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p
+            className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] ${
+              kind === "ieee" ? "text-sky-300" : highlight ? "text-gold-400" : "text-ink-400"
+            }`}
+          >
+            {kind === "question" && <>Question {q.slot}</>}
+            {kind === "riddle" && (
+              <>
+                <KeyRound className="h-4 w-4" /> The riddle · leads to your next arena
+              </>
+            )}
+            {kind === "final" && (
+              <>
+                <Trophy className="h-4 w-4" /> Final question · stops the clock
+              </>
+            )}
+            {kind === "ieee" && (
+              <>
+                <Sparkles className="h-4 w-4" /> IEEE SB VU {q.slot === 4 ? "· final question" : "special"}
+              </>
+            )}
+          </p>
+          <span className="rounded-full bg-ink-800 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-ink-300">
+            {isMcq ? "Choose one" : "Type answer"}
+          </span>
+        </div>
         <p className="mt-4 whitespace-pre-line text-xl font-medium leading-relaxed">{q.prompt}</p>
       </div>
 
-      <form onSubmit={submit} className="space-y-3">
-        <input
-          ref={inputRef}
-          key={wrong}
-          className={`input h-16 text-xl ${wrong ? "animate-shake border-bad/60" : ""}`}
-          placeholder="Type your answer"
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="send"
-          aria-label="Your answer"
-        />
-        {wrong > 0 && (
-          <p className="text-sm text-bad" role="alert">
-            Not quite. {waitSec > 0 ? `Try again in ${waitSec}s.` : "Give it another go."}
-          </p>
-        )}
-        <button className="btn-primary h-16 text-lg" disabled={busy || !answer.trim() || waitSec > 0}>
-          {busy ? (
-            <Loader2 className="h-6 w-6 animate-spin" />
-          ) : waitSec > 0 ? (
-            <span className="font-mono">Wait {waitSec}s</span>
+      {isMcq ? (
+        <div className="space-y-3">
+          <div className="grid gap-2.5" role="radiogroup" aria-label="Options">
+            {q.options.map((opt, i) => {
+              const tried = q.tried.includes(opt);
+              const selected = answer === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={tried || locked || busy}
+                  onClick={() => setAnswer(opt)}
+                  className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-base transition active:scale-[.99] ${
+                    tried
+                      ? "border-bad/30 bg-bad/5 text-ink-500 line-through"
+                      : selected
+                        ? "border-gold-400 bg-gold-400/10 text-ink-100 ring-4 ring-gold-400/15"
+                        : "border-ink-700 bg-ink-900/80 text-ink-100"
+                  } disabled:cursor-not-allowed`}
+                >
+                  <span
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg font-mono text-sm font-bold ${
+                      tried ? "bg-bad/15 text-bad" : selected ? "bg-gold-400 text-ink-950" : "bg-ink-800 text-ink-300"
+                    }`}
+                  >
+                    {String.fromCharCode(65 + i)}
+                  </span>
+                  <span className="min-w-0 flex-1 break-words font-medium">{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+          {locked ? (
+            <LockBanner seconds={waitSec} total={state.lockSeconds.mcq} />
           ) : (
-            <>Submit answer <ArrowRight className="h-5 w-5" /></>
+            <>
+              {wrong > 0 && <p className="text-sm text-bad" role="alert">Wrong option. Choose carefully.</p>}
+              <p className="text-center text-xs text-ink-500">A wrong option locks this question for {state.lockSeconds.mcq} seconds.</p>
+              <button className="btn-primary h-16 text-lg" disabled={busy || !answer} onClick={() => submit()}>
+                {busy ? <Loader2 className="h-6 w-6 animate-spin" /> : <>Lock in answer <ArrowRight className="h-5 w-5" /></>}
+              </button>
+            </>
           )}
-        </button>
-      </form>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-3">
+          <input
+            ref={inputRef}
+            key={wrong}
+            className={`input h-16 text-xl ${wrong ? "animate-shake border-bad/60" : ""}`}
+            placeholder="Type your answer"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            enterKeyHint="send"
+            aria-label="Your answer"
+          />
+          {wrong > 0 && (
+            <p className="text-sm text-bad" role="alert">
+              Not quite. {locked ? `Try again in ${waitSec}s.` : "Give it another go."}
+            </p>
+          )}
+          <button className="btn-primary h-16 text-lg" disabled={busy || !answer.trim() || locked}>
+            {busy ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : locked ? (
+              <span className="font-mono">Wait {waitSec}s</span>
+            ) : (
+              <>Submit answer <ArrowRight className="h-5 w-5" /></>
+            )}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function LockBanner({ seconds, total }: { seconds: number; total: number }) {
+  const pct = Math.min(100, (seconds / Math.max(1, total)) * 100);
+  return (
+    <div className="animate-shake overflow-hidden rounded-2xl border border-bad/40 bg-bad/10" role="alert">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <Lock className="h-5 w-5 shrink-0 text-bad" />
+        <div className="flex-1">
+          <p className="font-semibold text-bad">Wrong option — question locked</p>
+          <p className="text-sm text-ink-300">Think it over. You can answer again in</p>
+        </div>
+        <span className="font-mono text-2xl font-bold tabular-nums text-bad">{seconds}s</span>
+      </div>
+      <div className="h-1.5 bg-bad/10">
+        <div className="h-full bg-bad transition-[width] duration-300" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
@@ -515,7 +638,7 @@ function FinishedView({ state }: { state: TeamState }) {
         </div>
         <p className="mt-8 text-xs font-semibold uppercase tracking-[.3em] text-gold-400">Hunt complete</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">Treasure found!</h1>
-        <p className="mt-2 text-ink-300">All four tracks conquered, {state.team.name}.</p>
+        <p className="mt-2 text-ink-300">All four arenas conquered, {state.team.name}.</p>
 
         <div className="card mt-8 w-full p-6">
           <p className="label">Final time</p>
@@ -530,8 +653,43 @@ function FinishedView({ state }: { state: TeamState }) {
             </li>
           ))}
         </ul>
+        <IeeeCard />
         <p className="mt-8 text-sm text-ink-400">Head back to the base — results will be announced soon.</p>
       </div>
     </div>
   );
 }
+
+const PILLARS = [
+  { t: "Research", d: "Mentoring from idea to published paper" },
+  { t: "Patents", d: "Help protecting and filing your inventions" },
+  { t: "Startup funding", d: "Pitch practice, mentors and funding routes" },
+  { t: "Tech community", d: "Workshops, talks and teammates who build" },
+  { t: "Hackathons", d: "Build real solutions against the clock" },
+];
+
+function IeeeCard() {
+  return (
+    <div className="mt-6 w-full rounded-3xl border border-sky-400/30 bg-gradient-to-br from-sky-500/15 to-ink-900 p-5 text-left">
+      <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-sky-300">
+        <Sparkles className="h-4 w-4" /> Brought to you by IEEE SB VU
+      </p>
+      <p className="mt-2 text-lg font-semibold leading-snug">We&apos;re not just here to promote research — we back your ideas all the way.</p>
+      <ul className="mt-4 space-y-2.5">
+        {PILLARS.map((p) => (
+          <li key={p.t} className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sky-400/20 text-sky-300">
+              <Check className="h-3.5 w-3.5" strokeWidth={3} />
+            </span>
+            <span>
+              <span className="font-semibold">{p.t}</span>
+              <span className="text-ink-300"> — {p.d}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-sm text-ink-300">Join IEEE Student Branch, VU and build what&apos;s next with us.</p>
+    </div>
+  );
+}
+

@@ -19,8 +19,16 @@ export type TeamState = {
   questionNo: number;
   progress: { stage: number; status: "done" | "current" | "locked"; track: TrackInfo | null }[];
   current: { track: TrackInfo; station: string | null; isFirst: boolean } | null;
-  question: { slot: number; prompt: string } | null;
+  question: {
+    slot: number;
+    prompt: string;
+    kind: "text" | "mcq";
+    options: string[];
+    tried: string[]; // MCQ options already answered wrongly
+    category: string;
+  } | null;
   cooldownUntil: number | null;
+  lockSeconds: { text: number; mcq: number };
   pinRequired: boolean;
 };
 
@@ -39,7 +47,8 @@ export async function getTeamState(teamId: number): Promise<TeamState | null> {
     include: {
       members: { orderBy: { id: "asc" } },
       assignments: { include: { track: true, qrCode: true }, orderBy: { stage: "asc" } },
-      questions: { select: { trackId: true, slot: true, prompt: true } },
+      questions: { select: { id: true, trackId: true, slot: true, prompt: true, kind: true, options: true, category: true } },
+      attempts: { where: { correct: false }, select: { questionId: true, answer: true } },
     },
   });
   if (!team) return null;
@@ -71,13 +80,18 @@ export async function getTeamState(teamId: number): Promise<TeamState | null> {
   let question: TeamState["question"] = null;
   if (phase === "question" && curA) {
     const q = team.questions.find((x) => x.trackId === curA.trackId && x.slot === team.questionNo);
-    question = { slot: team.questionNo, prompt: q?.prompt ?? "Question missing — please call an organiser." };
+    const kind = q?.kind === "mcq" ? "mcq" : "text";
+    question = {
+      slot: team.questionNo,
+      prompt: q?.prompt ?? "Question missing — please call an organiser.",
+      kind,
+      options: kind === "mcq" && q?.options ? (JSON.parse(q.options) as string[]) : [],
+      tried: kind === "mcq" && q ? [...new Set(team.attempts.filter((a) => a.questionId === q.id).map((a) => a.answer))] : [],
+      category: q?.category ?? "",
+    };
   }
 
-  const cooldownUntil =
-    team.lastWrongAt && config.wrongCooldownSec > 0
-      ? team.lastWrongAt.getTime() + config.wrongCooldownSec * 1000
-      : null;
+  const cooldownUntil = team.lockedUntil?.getTime() ?? null;
 
   return {
     team: { id: team.id, code: team.code, name: team.name },
@@ -94,6 +108,7 @@ export async function getTeamState(teamId: number): Promise<TeamState | null> {
     question,
     cooldownUntil: cooldownUntil && cooldownUntil > Date.now() ? cooldownUntil : null,
     pinRequired: !!config.attendancePin,
+    lockSeconds: { text: config.wrongCooldownSec, mcq: config.mcqLockSec },
   };
 }
 
@@ -204,7 +219,7 @@ async function advance(team: { id: number; stage: number; questionNo: number; tr
   if (team.questionNo < 4) {
     const r = await db.team.updateMany({
       where: { id: team.id, stage: team.stage, questionNo: team.questionNo },
-      data: { questionNo: team.questionNo + 1, lastWrongAt: null },
+      data: { questionNo: team.questionNo + 1, lastWrongAt: null, lockedUntil: null },
     });
     return { advanced: r.count > 0, trackCleared: false, finished: false };
   }
@@ -213,7 +228,7 @@ async function advance(team: { id: number; stage: number; questionNo: number; tr
   const finished = nextStage >= order.length;
   const r = await db.team.updateMany({
     where: { id: team.id, stage: team.stage, questionNo: 4 },
-    data: { stage: nextStage, questionNo: 0, lastWrongAt: null, ...(finished ? { finishedAt: now } : {}) },
+    data: { stage: nextStage, questionNo: 0, lastWrongAt: null, lockedUntil: null, ...(finished ? { finishedAt: now } : {}) },
   });
   if (r.count > 0) {
     await db.teamTrack.updateMany({
@@ -225,7 +240,7 @@ async function advance(team: { id: number; stage: number; questionNo: number; tr
 }
 
 export type AnswerResponse =
-  | { status: "correct"; trackCleared: boolean; finished: boolean }
+  | { status: "correct"; trackCleared: boolean; finished: boolean; takeaway: string | null }
   | { status: "wrong"; cooldownUntil: number | null }
   | { status: "cooldown"; cooldownUntil: number }
   | { status: "stale" };
@@ -234,31 +249,34 @@ export async function submitAnswer(teamId: number, answer: string): Promise<Answ
   const team = await db.team.findUnique({
     relationLoadStrategy: "join",
     where: { id: teamId },
-    include: { questions: { select: { id: true, trackId: true, slot: true, answers: true } } },
+    include: { questions: { select: { id: true, trackId: true, slot: true, answers: true, kind: true, options: true, takeaway: true } } },
   });
   if (!team || team.finishedAt || team.questionNo === 0) return { status: "stale" };
 
-  if (team.lastWrongAt && config.wrongCooldownSec > 0) {
-    const until = team.lastWrongAt.getTime() + config.wrongCooldownSec * 1000;
-    if (until > Date.now()) return { status: "cooldown", cooldownUntil: until };
+  if (team.lockedUntil && team.lockedUntil.getTime() > Date.now()) {
+    return { status: "cooldown", cooldownUntil: team.lockedUntil.getTime() };
   }
 
   const trackId = parseOrder(team.trackOrder)[team.stage];
   const q = team.questions.find((x) => x.trackId === trackId && x.slot === team.questionNo);
   if (!q) return { status: "stale" };
 
-  const correct = isCorrect(answer, q.answers);
+  const isMcq = q.kind === "mcq";
+  if (isMcq && !(JSON.parse(q.options || "[]") as string[]).includes(answer)) return { status: "stale" };
+  const correct = isMcq ? answer === q.answers : isCorrect(answer, q.answers);
   const logAttempt = db.attempt.create({ data: { teamId, questionId: q.id, answer: answer.slice(0, 200), correct } });
 
   if (!correct) {
-    const now = new Date();
-    await Promise.all([logAttempt, db.team.update({ where: { id: teamId }, data: { lastWrongAt: now } })]);
-    return { status: "wrong", cooldownUntil: config.wrongCooldownSec > 0 ? now.getTime() + config.wrongCooldownSec * 1000 : null };
+    // Wrong MCQ = long lock (no guessing through the options); wrong text = short cooldown.
+    const lockSec = isMcq ? config.mcqLockSec : config.wrongCooldownSec;
+    const until = lockSec > 0 ? new Date(Date.now() + lockSec * 1000) : null;
+    await Promise.all([logAttempt, db.team.update({ where: { id: teamId }, data: { lastWrongAt: new Date(), lockedUntil: until } })]);
+    return { status: "wrong", cooldownUntil: until?.getTime() ?? null };
   }
 
   const [r] = await Promise.all([advance(team), logAttempt]);
   if (!r.advanced) return { status: "stale" };
-  return { status: "correct", trackCleared: r.trackCleared, finished: r.finished };
+  return { status: "correct", trackCleared: r.trackCleared, finished: r.finished, takeaway: q.takeaway || null };
 }
 
 /* ---------- admin operations ---------- */
@@ -279,7 +297,7 @@ export async function adminResetProgress(teamId: number) {
   await db.$transaction([
     db.team.update({
       where: { id: teamId },
-      data: { startedAt: null, attendanceAt: null, finishedAt: null, stage: 0, questionNo: 0, penaltySec: 0, lastWrongAt: null },
+      data: { startedAt: null, attendanceAt: null, finishedAt: null, stage: 0, questionNo: 0, penaltySec: 0, lastWrongAt: null, lockedUntil: null },
     }),
     db.member.updateMany({ where: { teamId }, data: { present: false, markedAt: null } }),
     db.teamTrack.updateMany({ where: { teamId }, data: { enteredAt: null, completedAt: null } }),

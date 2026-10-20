@@ -23,7 +23,7 @@ export function TrackProgress({ progress }: { progress: TeamState["progress"] })
                 {p.status === "done" ? <Check className="h-5 w-5" strokeWidth={3} /> : p.status === "locked" ? <Lock className="h-4 w-4" /> : i + 1}
               </div>
               <span className={`line-clamp-2 text-center text-[10px] font-medium leading-tight ${p.status === "locked" ? "text-ink-500" : "text-ink-300"}`}>
-                {p.track?.name ?? `Track ${i + 1}`}
+                {p.track?.name ?? `Arena ${i + 1}`}
               </span>
             </div>
             {i < progress.length - 1 && (

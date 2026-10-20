@@ -26,6 +26,10 @@ export async function GET() {
           slot,
           question: q?.prompt ?? "",
           answers: q?.answers ?? "",
+          type: q?.kind ?? "text",
+          options: q?.options ? (JSON.parse(q.options) as string[]).join("|") : "",
+          category: q?.category ?? "",
+          takeaway: q?.takeaway ?? "",
           stop_number: stage + 1,
           note: slot < 4 ? "" : stage < 3 ? `Riddle must lead to: ${name(order[stage + 1])}` : "FINAL question (stops the clock)",
         };

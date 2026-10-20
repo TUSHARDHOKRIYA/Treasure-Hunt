@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { db } from "../lib/db";
 import { randomPassword } from "../lib/format";
-import { buildTeams, generatePlaceholderQuestions, TeamInput } from "../lib/setup";
+import { buildTeams, generateQuestions, TeamInput } from "../lib/setup";
 
 const FIRST = ["Aarav", "Diya", "Kabir", "Meera", "Rohan", "Isha", "Arjun", "Anaya", "Vihaan", "Saanvi", "Aditya", "Kiara", "Reyansh", "Myra", "Ishaan"];
 const LAST = ["Sharma", "Patel", "Iyer", "Reddy", "Nair", "Gupta", "Khan", "Das", "Menon", "Joshi"];
@@ -29,7 +29,7 @@ async function main() {
   await db.setting.deleteMany();
   await db.qrCode.deleteMany(); // fresh QR tokens on every seed
   await buildTeams(teams);
-  const n = await generatePlaceholderQuestions();
+  const n = await generateQuestions();
 
   writeFileSync(
     "credentials.csv",

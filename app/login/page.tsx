@@ -14,7 +14,7 @@ export default function LoginPage() {
           </div>
           <p className="mt-6 text-xs font-semibold uppercase tracking-[.3em] text-gold-400">Treasure Hunt</p>
           <h1 className="mt-2 text-4xl font-bold tracking-tight">The Hunt Begins</h1>
-          <p className="mt-3 max-w-xs text-ink-300">Four tracks. Sixteen questions. One clock. Sign in with your team credentials.</p>
+          <p className="mt-3 max-w-xs text-ink-300">Four arenas. Sixteen questions. One clock. Sign in with your team credentials.</p>
         </div>
 
         <div className="animate-rise mt-10 [animation-delay:.1s]">

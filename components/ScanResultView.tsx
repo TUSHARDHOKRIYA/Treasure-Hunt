@@ -7,29 +7,29 @@ export function describeScan(r: ScanResponse): { tone: Tone; title: string; body
   const track = r.scannedTrack?.name;
   switch (r.result) {
     case "OK":
-      return { tone: "good", title: "Track unlocked!", body: `Welcome to ${track}. Your first question is ready.`, Icon: CheckCircle2 };
+      return { tone: "good", title: "Arena unlocked!", body: `Welcome to ${track}. Your first question is ready.`, Icon: CheckCircle2 };
     case "ALREADY_IN":
       return { tone: "good", title: "You're already in", body: `Keep going — your questions at ${track} are waiting.`, Icon: CheckCircle2 };
     case "WRONG_TRACK":
       return {
         tone: "bad",
-        title: "Incorrect track",
+        title: "Incorrect arena",
         body: `This QR code belongs to ${track}. That isn't your destination — re-read your clue.`,
         Icon: MapPinOff,
       };
     case "WRONG_QR":
       return {
         tone: "warn",
-        title: "Right track, wrong QR code",
+        title: "Right arena, wrong QR code",
         body: r.correctStation
-          ? `You're at the correct track, but this is station ${r.scannedStation}. Find station ${r.correctStation}.`
-          : `You're at the correct track, but you scanned the wrong QR code. Look for another one here.`,
+          ? `You're at the correct arena, but this is station ${r.scannedStation}. Find station ${r.correctStation}.`
+          : `You're at the correct arena, but you scanned the wrong QR code. Look for another one here.`,
         Icon: AlertTriangle,
       };
     case "TRACK_DONE":
       return { tone: "warn", title: "Already completed", body: `You've already conquered ${track}. Head to your next destination.`, Icon: Repeat };
     case "BUSY":
-      return { tone: "warn", title: "Finish this track first", body: "Answer all the questions at your current track before moving on.", Icon: AlertTriangle };
+      return { tone: "warn", title: "Finish this arena first", body: "Answer all the questions in your current arena before moving on.", Icon: AlertTriangle };
     case "NEED_ATTENDANCE":
       return { tone: "warn", title: "Attendance pending", body: "Mark your team's attendance before scanning.", Icon: AlertTriangle };
     case "FINISHED":

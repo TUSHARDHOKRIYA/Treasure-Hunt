@@ -3,13 +3,10 @@ import { db } from "./db";
 import { STATIONS } from "./config";
 import { randomToken } from "./format";
 import { sequenceFor, shuffle, stationFor } from "./schedule";
+import { ARENAS, generateQuestionSet } from "./questions";
 
-export const DEFAULT_TRACKS = [
-  { id: 1, name: "Old Library", location: "Ground floor, east wing", color: "#FF7A66" },
-  { id: 2, name: "Main Auditorium", location: "Block B entrance", color: "#2EC4B6" },
-  { id: 3, name: "Central Garden", location: "Behind the canteen", color: "#A78BFA" },
-  { id: 4, name: "Sports Ground", location: "Near the pavilion", color: "#F5B700" },
-];
+// The 4 arenas. Locations are left blank — add them from Admin → Setup if you want them shown.
+export const DEFAULT_TRACKS = ARENAS.map((a) => ({ id: a.id, name: a.name, location: "", color: a.color }));
 
 /** Creates the 4 tracks and their 12 QR stations if they don't exist yet. */
 export async function ensureTracksAndQr() {
@@ -57,49 +54,30 @@ export async function buildTeams(inputs: TeamInput[]) {
   }
 }
 
-/** Fills every team × track × slot with simple placeholder questions (replace via CSV import). */
-export async function generatePlaceholderQuestions() {
-  const teams = await db.team.findMany({ orderBy: { id: "asc" } });
-  const tracks = await db.track.findMany();
-  const trackName = (id: number) => tracks.find((t) => t.id === id)!.name;
-
-  await db.question.deleteMany();
-  const rows: { teamId: number; trackId: number; slot: number; prompt: string; answers: string }[] = [];
-
-  for (const team of teams) {
-    const order = team.trackOrder.split(",").map(Number);
-    order.forEach((trackId, stage) => {
-      for (let slot = 1; slot <= 3; slot++) {
-        const a = 3 + ((team.id * 7 + trackId * 11 + slot * 5) % 40);
-        const b = 2 + ((team.id * 3 + trackId * 13 + slot * 17) % 30);
-        const ops = [
-          { p: `What is ${a} + ${b}?`, ans: `${a + b}` },
-          { p: `What is ${a} × ${b % 9 + 2}?`, ans: `${a * (b % 9 + 2)}` },
-          { p: `What is ${a + b} − ${b}?`, ans: `${a}` },
-        ];
-        const op = ops[(slot + team.id) % 3];
-        rows.push({ teamId: team.id, trackId, slot, prompt: op.p, answers: op.ans });
-      }
-      const next = order[stage + 1];
-      rows.push(
-        next
-          ? {
-              teamId: team.id,
-              trackId,
-              slot: 4,
-              prompt: `Riddle: your next stop goes by the name "${trackName(next)}". Type its name to unlock the path.`,
-              answers: trackName(next),
-            }
-          : {
-              teamId: team.id,
-              trackId,
-              slot: 4,
-              prompt: 'Final question: complete the pirate saying — "_ marks the spot". (one letter)',
-              answers: "X|x marks the spot",
-            },
-      );
-    });
-  }
-  await db.question.createMany({ data: rows });
+/** Generates a fresh, unique, arena-themed question set for every team (replaces all questions). */
+export async function generateQuestions(seed = Date.now() % 100000) {
+  const teams = await db.team.findMany({ orderBy: { id: "asc" }, select: { id: true, trackOrder: true } });
+  const rows = generateQuestionSet(
+    teams.map((t) => ({ id: t.id, order: t.trackOrder.split(",").map(Number) })),
+    seed,
+  ).map((q) => ({
+    teamId: q.teamId,
+    trackId: q.trackId,
+    slot: q.slot,
+    prompt: q.prompt,
+    answers: q.answers,
+    kind: q.kind,
+    options: q.options ? JSON.stringify(q.options) : "",
+    category: q.category ?? "",
+    takeaway: q.takeaway ?? "",
+  }));
+  await db.$transaction([db.question.deleteMany(), db.question.createMany({ data: rows })]);
   return rows.length;
+}
+
+/** Renames the tracks to the default arenas (keeps any locations already set). */
+export async function applyArenaNames() {
+  for (const t of DEFAULT_TRACKS) {
+    await db.track.upsert({ where: { id: t.id }, update: { name: t.name, color: t.color }, create: t });
+  }
 }

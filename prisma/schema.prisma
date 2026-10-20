@@ -25,6 +25,7 @@ model Team {
   questionNo   Int         @default(0) // 0 = must scan QR, 1..4 = answering
   penaltySec   Int         @default(0)
   lastWrongAt  DateTime?
+  lockedUntil  DateTime? // answering is blocked until this time after a wrong answer
   members      Member[]
   assignments  TeamTrack[]
   questions    Question[]
@@ -89,7 +90,11 @@ model Question {
   track    Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
   slot     Int       // 1..4 (4 = riddle to next track / final question)
   prompt   String
-  answers  String    // accepted answers separated by "|"
+  answers  String    // accepted answers separated by "|" (for MCQ: the correct option)
+  kind     String    @default("text") // "text" | "mcq"
+  options  String    @default("")     // MCQ options as a JSON array
+  category String    @default("")     // e.g. "ieee", "riddle"
+  takeaway String    @default("")     // shown after a correct answer (IEEE SB VU messages)
   attempts Attempt[]
 
   @@unique([teamId, trackId, slot])

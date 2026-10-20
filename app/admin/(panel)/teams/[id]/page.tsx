@@ -142,8 +142,22 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                             {solved ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : slot}
                           </span>
                           <div className="min-w-0">
-                            <p className="text-ink-100">{q?.prompt ?? <i className="text-bad">Missing question</i>}</p>
-                            <p className="mt-1 font-mono text-xs text-ink-400">→ {q?.answers.split("|").join("  /  ")}</p>
+                            <p className="whitespace-pre-line text-ink-100">
+                              {q?.category === "ieee" && <span className="mr-1.5 rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">IEEE</span>}
+                              <span className="mr-1.5 rounded bg-ink-800 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-300">{q?.kind ?? "text"}</span>
+                              {q?.prompt ?? <i className="text-bad">Missing question</i>}
+                            </p>
+                            {q?.kind === "mcq" && q.options ? (
+                              <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                                {(JSON.parse(q.options) as string[]).map((o) => (
+                                  <span key={o} className={`rounded-md px-1.5 py-0.5 ${o === q.answers ? "bg-good/15 font-semibold text-good" : "bg-ink-800 text-ink-400"}`}>
+                                    {o}
+                                  </span>
+                                ))}
+                              </p>
+                            ) : (
+                              <p className="mt-1 font-mono text-xs text-ink-400">→ {q?.answers.split("|").join("  /  ")}</p>
+                            )}
                           </div>
                         </li>
                       );

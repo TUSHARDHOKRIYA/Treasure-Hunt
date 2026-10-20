@@ -129,10 +129,10 @@ export default async function SetupPage() {
           </ActionButton>
           <ActionButton
             action={regeneratePlaceholders}
-            confirmText="Overwrite ALL questions with placeholder questions?"
+            confirmText="Replace ALL questions with a fresh, unique arena question set? Teams mid-game will see new questions."
             className="btn h-12 border border-ink-600 bg-ink-850 text-sm"
           >
-            <RefreshCcw className="h-4 w-4" /> Regenerate placeholder questions
+            <RefreshCcw className="h-4 w-4" /> Regenerate all questions
           </ActionButton>
           <ActionButton
             action={resetAllProgress}

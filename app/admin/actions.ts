@@ -10,7 +10,7 @@ import { clearAdminSession, isAdmin, requireAdmin, setAdminSession } from "@/lib
 import { randomPassword, randomToken } from "@/lib/format";
 import { adminResetProgress, adminSkipQuestion } from "@/lib/game";
 import { setSetting } from "@/lib/settings";
-import { buildTeams, generatePlaceholderQuestions, TeamInput } from "@/lib/setup";
+import { buildTeams, generateQuestions, TeamInput } from "@/lib/setup";
 
 /* ---------- auth ---------- */
 
@@ -114,7 +114,7 @@ export async function regenerateQrCodes() {
 
 export async function regeneratePlaceholders() {
   await requireAdmin();
-  await generatePlaceholderQuestions();
+  await generateQuestions();
   revalidatePath("/admin", "layout");
 }
 
@@ -150,16 +150,20 @@ export async function importTeams(_: ImportResult, form: FormData): Promise<Impo
   for (const t of teams) if (!t.password) t.password = randomPassword();
 
   await buildTeams(teams);
-  const n = await generatePlaceholderQuestions();
+  const n = await generateQuestions();
   revalidatePath("/admin", "layout");
   return {
     ok: true,
-    message: `Imported ${teams.length} teams with a fresh balanced schedule and ${n} placeholder questions. Import your real questions next.`,
+    message: `Imported ${teams.length} teams with a fresh balanced schedule and ${n} arena questions (unique per team).`,
     credentialsCsv: "team_code,team_name,password\n" + teams.map((t) => `${t.code},"${t.name}",${t.password}`).join("\n"),
   };
 }
 
-/** questions.csv: team_code, track, slot, question, answers (alternatives separated by |) */
+/**
+ * questions.csv: team_code, track, slot, question, answers, type, options, category, takeaway
+ * - answers: alternatives separated by |   (for MCQ: the correct option, exactly as written in options)
+ * - type: text | mcq        options: MCQ choices separated by |
+ */
 export async function importQuestions(_: ImportResult, form: FormData): Promise<ImportResult> {
   if (!(await isAdmin())) return { ok: false, message: "Not signed in." };
   const file = form.get("file");
@@ -168,7 +172,17 @@ export async function importQuestions(_: ImportResult, form: FormData): Promise<
   const rows = parseCsv(await file.text());
   const teams = await db.team.findMany({ select: { id: true, code: true } });
   const teamId = new Map(teams.map((t) => [t.code, t.id]));
-  const data: { teamId: number; trackId: number; slot: number; prompt: string; answers: string }[] = [];
+  const data: {
+    teamId: number;
+    trackId: number;
+    slot: number;
+    prompt: string;
+    answers: string;
+    kind: string;
+    options: string;
+    category: string;
+    takeaway: string;
+  }[] = [];
 
   for (const [i, r] of rows.entries()) {
     const id = teamId.get((r.team_code || "").toUpperCase());
@@ -179,14 +193,29 @@ export async function importQuestions(_: ImportResult, form: FormData): Promise<
     if (!id) return { ok: false, message: `Row ${i + 2}: unknown team_code "${r.team_code}".` };
     if (![1, 2, 3, 4].includes(track) || ![1, 2, 3, 4].includes(slot)) return { ok: false, message: `Row ${i + 2}: track and slot must be 1–4.` };
     if (!prompt || !answers) return { ok: false, message: `Row ${i + 2}: question and answers are required.` };
-    data.push({ teamId: id, trackId: track, slot, prompt, answers });
+    const kind = (r.type || "text").toLowerCase() === "mcq" ? "mcq" : "text";
+    const options = (r.options || "").split("|").map((o) => o.trim()).filter(Boolean);
+    if (kind === "mcq" && (options.length < 2 || !options.includes(answers.trim()))) {
+      return { ok: false, message: `Row ${i + 2}: an MCQ needs at least 2 options and the answer must be one of them.` };
+    }
+    data.push({
+      teamId: id,
+      trackId: track,
+      slot,
+      prompt,
+      answers: kind === "mcq" ? answers.trim() : answers,
+      kind,
+      options: kind === "mcq" ? JSON.stringify(options) : "",
+      category: r.category || "",
+      takeaway: r.takeaway || "",
+    });
   }
 
   await db.$transaction(
     data.map((d) =>
       db.question.upsert({
         where: { teamId_trackId_slot: { teamId: d.teamId, trackId: d.trackId, slot: d.slot } },
-        update: { prompt: d.prompt, answers: d.answers },
+        update: { prompt: d.prompt, answers: d.answers, kind: d.kind, options: d.options, category: d.category, takeaway: d.takeaway },
         create: d,
       }),
     ),
