@@ -34,6 +34,8 @@ export function describeScan(r: ScanResponse): { tone: Tone; title: string; body
       return { tone: "warn", title: "Attendance pending", body: "Mark your team's attendance before scanning.", Icon: AlertTriangle };
     case "FINISHED":
       return { tone: "good", title: "You've finished!", body: "Your hunt is complete. Head back to the base.", Icon: CheckCircle2 };
+    case "NETWORK":
+      return { tone: "warn", title: "Connection problem", body: "We couldn't reach the server. Check your signal and scan again.", Icon: AlertTriangle };
     default:
       return { tone: "bad", title: "Not a hunt QR code", body: "This code isn't part of the treasure hunt. Try again.", Icon: QrCode };
   }

@@ -147,7 +147,8 @@ export type ScanResult =
   | "BUSY"
   | "NEED_ATTENDANCE"
   | "FINISHED"
-  | "INVALID";
+  | "INVALID"
+  | "NETWORK"; // client-side only: the request never got an answer
 
 export type ScanResponse = {
   result: ScanResult;

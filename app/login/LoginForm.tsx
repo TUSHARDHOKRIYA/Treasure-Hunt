@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { postJson } from "@/lib/client-fetch";
 import { ArrowRight, Eye, EyeOff, KeyRound, Loader2, Users } from "lucide-react";
 
 export function LoginForm() {
@@ -18,11 +19,7 @@ export function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, password }),
-    }).catch(() => null);
+    const res = await postJson("/api/auth/login", { code, password });
     if (res?.ok) {
       router.replace(next && next.startsWith("/") ? next : "/play");
       router.refresh();

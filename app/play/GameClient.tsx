@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { AnswerResponse, ScanResponse, TeamState } from "@/lib/game";
 import { formatDuration } from "@/lib/format";
+import { apiFetch, postJson } from "@/lib/client-fetch";
 import { Logo } from "@/components/Logo";
 import { Timer } from "@/components/Timer";
 import { TrackProgress } from "@/components/TrackProgress";
@@ -36,7 +37,7 @@ export function GameClient({ initial }: { initial: TeamState }) {
   const [scanResult, setScanResult] = useState<ScanResponse | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/state", { cache: "no-store" }).catch(() => null);
+    const res = await apiFetch("/api/state", {}, { timeoutMs: 8000, retries: 1 });
     if (res?.status === 401) return router.replace("/login");
     if (res?.ok) setState(await res.json());
   }, [router]);
@@ -56,12 +57,8 @@ export function GameClient({ initial }: { initial: TeamState }) {
     async (code: string) => {
       setScannerOpen(false);
       setScanBusy(true);
-      const res = await fetch("/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      }).catch(() => null);
-      const data: ScanResponse & { state?: TeamState } = res?.ok ? await res.json() : { result: "INVALID" };
+      const res = await postJson("/api/scan", { code });
+      const data: ScanResponse & { state?: TeamState } = res?.ok ? await res.json() : { result: "NETWORK" };
       navigator.vibrate?.(data.result === "OK" ? 60 : [30, 50, 30]);
       setScanResult(data);
       setScanBusy(false);
@@ -248,11 +245,7 @@ function AttendanceView({ state, onDone }: { state: TeamState; onDone: () => voi
   async function submit() {
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/attendance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ presentIds: present, pin }),
-    }).catch(() => null);
+    const res = await postJson("/api/attendance", { presentIds: present, pin });
     const data = await res?.json().catch(() => null);
     if (res?.ok) return onDone();
     setError(data?.error ?? "Network error. Try again.");
@@ -414,6 +407,7 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [wrong, setWrong] = useState(0);
+  const [netError, setNetError] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(state.cooldownUntil);
   const [now, setNow] = useState(Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
@@ -435,13 +429,14 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
     e?.preventDefault();
     if (!answer.trim() || locked || busy) return;
     setBusy(true);
-    const res = await fetch("/api/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answer }),
-    }).catch(() => null);
-    const data: AnswerWithState = res?.ok ? await res.json() : { status: "stale" };
+    const res = await postJson("/api/answer", { answer });
     setBusy(false);
+    if (!res?.ok) {
+      setNetError(true);
+      return;
+    }
+    setNetError(false);
+    const data: AnswerWithState = await res.json();
     if (data.status === "wrong" || data.status === "cooldown") {
       setWrong((w) => w + 1);
       setCooldownUntil(data.cooldownUntil);
@@ -509,6 +504,12 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
         </div>
         <p className="mt-4 whitespace-pre-line text-xl font-medium leading-relaxed">{q.prompt}</p>
       </div>
+
+      {netError && (
+        <p className="rounded-xl bg-warn/10 px-4 py-3 text-sm text-warn" role="alert">
+          Connection problem — your answer may not have reached us. Check your signal and submit again.
+        </p>
+      )}
 
       {isMcq ? (
         <div className="space-y-3">

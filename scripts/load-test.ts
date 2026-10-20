@@ -29,30 +29,46 @@ type Sample = { ep: string; ms: number; ok: boolean; status: number };
 const samples: Sample[] = [];
 const errors: string[] = [];
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+let retried = 0;
+
+/** Same behaviour as the phone app (lib/client-fetch.ts): 8 s timeout, up to 2 retries. */
 async function call(ep: string, cookie: string | null, body?: unknown) {
   const t = Date.now();
-  let status = 0;
-  try {
-    const res = await fetch(BASE + ep, {
-      method: body === undefined ? "GET" : "POST",
-      headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    status = res.status;
-    const json = await res.json().catch(() => null);
-    const ok = res.ok || (ep === "/api/auth/login" && res.status === 401);
-    samples.push({ ep, ms: Date.now() - t, ok, status });
-    if (!ok) errors.push(`${ep} → HTTP ${res.status} ${JSON.stringify(json)?.slice(0, 120)}`);
-    return { res, json };
-  } catch (e) {
-    samples.push({ ep, ms: Date.now() - t, ok: false, status });
-    const cause = (e as { cause?: { code?: string; message?: string } }).cause;
-    errors.push(`${ep} → ${(e as Error).message} (${cause?.code ?? cause?.message ?? "no cause"}) after ${Date.now() - t} ms`);
-    return { res: null, json: null };
+  let lastErr = "";
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    if (attempt > 0) retried++;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(BASE + ep, {
+        method: body === undefined ? "GET" : "POST",
+        headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (res.status >= 500 && attempt < 2) {
+        lastErr = `HTTP ${res.status}`;
+        continue;
+      }
+      const json = await res.json().catch(() => null);
+      const ok = res.ok || (ep === "/api/auth/login" && res.status === 401);
+      samples.push({ ep, ms: Date.now() - t, ok, status: res.status });
+      if (!ok) errors.push(`${ep} → HTTP ${res.status} ${JSON.stringify(json)?.slice(0, 120)}`);
+      return { res, json };
+    } catch (e) {
+      clearTimeout(timer);
+      const cause = (e as { cause?: { code?: string } }).cause;
+      lastErr = `${(e as Error).name === "AbortError" ? "timeout" : (e as Error).message} ${cause?.code ?? ""}`;
+      await sleep(400 * (attempt + 1));
+    }
   }
+  samples.push({ ep, ms: Date.now() - t, ok: false, status: 0 });
+  errors.push(`${ep} → failed after retries (${lastErr}) in ${Date.now() - t} ms`);
+  return { res: null, json: null };
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function playTeam(code: string, team: Awaited<ReturnType<typeof loadTeams>>[number], tIndex: number) {
   // Staggered arrival over ~10 s, like a real crowd.
@@ -162,7 +178,7 @@ async function main() {
 
   const finished = results.filter((r) => r === "finished").length;
   console.log(`\nDone in ${secs}s — finished: ${finished}/${teams.length}  (${results.filter((r) => r !== "finished").join(", ") || "all finished"})`);
-  console.log(`Requests: ${samples.length}, failed: ${samples.filter((s) => !s.ok).length}`);
+  console.log(`Requests: ${samples.length}, failed (seen by players): ${samples.filter((s) => !s.ok).length}, silently retried: ${retried}`);
   const eps = [...new Set(samples.map((s) => s.ep))];
   console.log("\nendpoint              n     p50    p95    max");
   for (const ep of eps) {

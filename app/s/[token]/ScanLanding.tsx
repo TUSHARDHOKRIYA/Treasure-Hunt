@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { ScanResponse } from "@/lib/game";
 import { ScanResultView } from "@/components/ScanResultView";
+import { postJson } from "@/lib/client-fetch";
 import { Logo } from "@/components/Logo";
 
 export function ScanLanding({ token }: { token: string }) {
@@ -14,13 +15,9 @@ export function ScanLanding({ token }: { token: string }) {
   useEffect(() => {
     if (sent.current) return;
     sent.current = true;
-    fetch("/api/scan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: token }),
-    })
-      .then((r) => (r.ok ? r.json() : { result: "INVALID" }))
-      .catch(() => ({ result: "INVALID" }))
+    postJson("/api/scan", { code: token })
+      .then((r) => (r?.ok ? r.json() : { result: "NETWORK" }))
+      .catch(() => ({ result: "NETWORK" }))
       .then((d: ScanResponse) => {
         navigator.vibrate?.(d.result === "OK" ? 60 : [30, 50, 30]);
         setResult(d);
