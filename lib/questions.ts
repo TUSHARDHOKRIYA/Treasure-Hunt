@@ -445,6 +445,8 @@ const RIDDLE_CLUES: Record<number, string[]> = {
     "Lose your way here and you nearly lose your mind.",
     "Patterns hide the exit; sequences show the way.",
     "Theseus needed a thread; you will need your wits.",
+    "Every turn looks the same, but only one leads out.",
+    "Puzzles are the walls and reasoning is the key.",
   ],
   2: [
     "A run of challenges thrown at you one after another — survive them all.",
@@ -455,6 +457,8 @@ const RIDDLE_CLUES: Record<number, string[]> = {
     "Every step is a test, and every test is a little faster.",
     "Challengers line up here and only the fearless finish.",
     "A medieval trial of courage, now a race against the clock.",
+    "No pause, no mercy — challenge after challenge until the end.",
+    "Only the fastest minds make it through this line of trials.",
   ],
   3: [
     "Classified secrets locked away from prying eyes.",
@@ -465,6 +469,8 @@ const RIDDLE_CLUES: Record<number, string[]> = {
     "Redacted lines and coded messages are waiting here.",
     "The archive no one is allowed to access — until now.",
     "Decode the text and the secrets inside are yours.",
+    "Confidential folders sealed with a warning: do not open.",
+    "Behind the cipher lies a dossier of hidden truths.",
   ],
   4: [
     "Steel doors, thick walls and a dial that clicks.",
@@ -475,6 +481,8 @@ const RIDDLE_CLUES: Record<number, string[]> = {
     "Crack the code and the riches inside are yours.",
     "Bolted, barred and guarded by numbers.",
     "Valuables rest here behind a heavy round door.",
+    "A room of riches sealed with a secret code.",
+    "Turn the dial just right and the gold is yours.",
   ],
 };
 
@@ -525,6 +533,14 @@ const PILLAR_SCENARIOS: [string, string][] = [
   ["You want to prototype fast, get judged by experts and get noticed. Which IEEE SB VU activity is this?", "Hackathons"],
   ["You want to practise teamwork under pressure while building an app. Which IEEE SB VU activity helps?", "Hackathons"],
   ["You want to turn a weekend into a working demo and a certificate. Which IEEE SB VU activity is this?", "Hackathons"],
+  ["You collected survey data for a new idea and want to analyse and publish it properly. Which IEEE SB VU pillar helps?", "Research support"],
+  ["You want feedback from experienced mentors on your research draft. Which IEEE SB VU pillar is for you?", "Research support"],
+  ["Your team built a unique smart-helmet design and wants to own the idea legally. Which IEEE SB VU support fits?", "Patent filing support"],
+  ["You want to know if your invention is new enough to be patented. Which IEEE SB VU pillar helps?", "Patent filing support"],
+  ["A judge said your project could be a business. You need guidance on funding. Which IEEE SB VU support fits?", "Startup funding support"],
+  ["You need contacts with incubators and investors for your idea. Which IEEE SB VU pillar is for you?", "Startup funding support"],
+  ["You just joined college and want to meet people who love coding and electronics. Which IEEE SB VU pillar fits?", "Tech community"],
+  ["You want to compete as a team, build fast and present to a jury. Which IEEE SB VU activity is this?", "Hackathons"],
 ];
 
 /** Final question of the hunt (slot 4 of the last arena): IEEE SB VU knowledge with a takeaway. */
@@ -560,6 +576,12 @@ const IEEE_FINALS: GenQ[] = [
   { kind: "mcq", prompt: "IEEE's highest honour, awarded for exceptional contributions to technology, is the IEEE…", answers: "Medal of Honor", options: ["Medal of Honor", "Gold Cup", "Nobel Prize", "Tech Oscar"] },
   { kind: "mcq", prompt: "Which IEEE SB VU pillar helps you turn a working prototype into a funded company?", answers: "Startup funding support", options: ["Startup funding support", "Research support", "Hackathons", "Tech community"] },
   { kind: "mcq", prompt: "Who runs an IEEE Student Branch like IEEE SB VU day to day?", answers: "Student volunteers", options: ["Student volunteers", "A private company", "The government", "Only alumni"] },
+  { kind: "mcq", prompt: "IEEE 802.15.1 was the original standard behind which wireless technology?", answers: "Bluetooth", options: ["Bluetooth", "Wi-Fi", "4G LTE", "NFC"] },
+  { kind: "mcq", prompt: "IEEE SB VU supports patents. Who owns the rights granted by a patent?", answers: "The patent holder", options: ["The patent holder", "Anyone who reads it", "The internet", "The first buyer"] },
+  { kind: "mcq", prompt: "A startup's \"runway\" means…", answers: "How long its money will last", options: ["How long its money will last", "Its office corridor", "Its launch-day event", "Its website loading speed"] },
+  { kind: "mcq", prompt: "Which IEEE SB VU pillar is all about building in a team under a strict time limit?", answers: "Hackathons", options: ["Hackathons", "Patent filing support", "Research support", "Startup funding support"] },
+  { kind: "text", prompt: "IEEE SB VU helps you publish. A list of the sources you used in a research paper is called the ______.  (one word)", answers: "References|Reference|Bibliography|Citations" },
+  { kind: "mcq", prompt: "IEEE SB VU builds a community. IEEE Young Professionals is a group for…", answers: "Early-career engineers and graduates", options: ["Early-career engineers and graduates", "School children only", "Retired engineers only", "Company CEOs only"] },
 ];
 
 const FINAL_TAKEAWAY =
