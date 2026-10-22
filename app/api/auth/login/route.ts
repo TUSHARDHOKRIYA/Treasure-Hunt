@@ -1,3 +1,4 @@
+import { withErrors } from "@/lib/api";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -5,7 +6,7 @@ import { config } from "@/lib/config";
 import { setTeamSession } from "@/lib/auth";
 import { isEventOpen } from "@/lib/settings";
 
-export async function POST(req: Request) {
+export const POST = withErrors(async function post(req: Request) {
   const body = await req.json().catch(() => ({}));
   const code = String(body.code ?? "").trim().toUpperCase();
   const password = String(body.password ?? "");
@@ -23,4 +24,4 @@ export async function POST(req: Request) {
   }
   await setTeamSession(team.id);
   return NextResponse.json({ ok: true });
-}
+});
