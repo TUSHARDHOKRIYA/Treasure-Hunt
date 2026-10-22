@@ -246,13 +246,23 @@ export type AnswerResponse =
   | { status: "cooldown"; cooldownUntil: number }
   | { status: "stale" };
 
-export async function submitAnswer(teamId: number, answer: string): Promise<AnswerResponse> {
+/**
+ * `expected` is the question the phone was showing. If the team has already moved on (a teammate
+ * answered on another phone, or this is a delayed retry), the answer is ignored instead of being
+ * judged against the next question — so nobody gets a false "wrong" or an unfair lock.
+ */
+export async function submitAnswer(
+  teamId: number,
+  answer: string,
+  expected?: { stage: number; questionNo: number },
+): Promise<AnswerResponse> {
   const team = await db.team.findUnique({
     relationLoadStrategy: "join",
     where: { id: teamId },
     include: { questions: { select: { id: true, trackId: true, slot: true, answers: true, kind: true, options: true, takeaway: true } } },
   });
   if (!team || team.finishedAt || team.questionNo === 0) return { status: "stale" };
+  if (expected && (expected.stage !== team.stage || expected.questionNo !== team.questionNo)) return { status: "stale" };
 
   if (team.lockedUntil && team.lockedUntil.getTime() > Date.now()) {
     return { status: "cooldown", cooldownUntil: team.lockedUntil.getTime() };

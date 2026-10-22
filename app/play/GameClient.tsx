@@ -429,7 +429,7 @@ function QuestionView({ state, onResult }: { state: TeamState; onResult: (r: Ans
     e?.preventDefault();
     if (!answer.trim() || locked || busy) return;
     setBusy(true);
-    const res = await postJson("/api/answer", { answer });
+    const res = await postJson("/api/answer", { answer, stage: state.stage, questionNo: q.slot });
     setBusy(false);
     if (!res?.ok) {
       setNetError(true);

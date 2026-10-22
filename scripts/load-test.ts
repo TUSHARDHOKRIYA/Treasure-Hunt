@@ -14,6 +14,7 @@ const TEAMS = Number(process.argv[3] || 30);
 const PHONES = Number(process.argv.find((a) => a.startsWith("--phones="))?.split("=")[1] ?? 3);
 const STOP_AT = process.argv.find((a) => a.startsWith("--stop-at="))?.split("=")[1]; // "final" → stop before last arena's IEEE questions
 const KEEP = process.argv.includes("--keep"); // don't reset at the end
+const BURST = process.argv.includes("--burst"); // every phone presses Login at the same instant
 if (!/^https?:\/\//.test(BASE)) throw new Error("usage: tsx scripts/load-test.ts <url> [teams]");
 
 const pw = Object.fromEntries(
@@ -27,10 +28,12 @@ const pw = Object.fromEntries(
 
 type Sample = { ep: string; ms: number; ok: boolean; status: number };
 const samples: Sample[] = [];
+const startTimes: number[] = [];
 const errors: string[] = [];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let retried = 0;
+let dupIgnored = 0;
 
 /** Same behaviour as the phone app (lib/client-fetch.ts): 8 s timeout, up to 2 retries. */
 async function call(ep: string, cookie: string | null, body?: unknown) {
@@ -71,17 +74,15 @@ async function call(ep: string, cookie: string | null, body?: unknown) {
 
 
 async function playTeam(code: string, team: Awaited<ReturnType<typeof loadTeams>>[number], tIndex: number) {
-  // Staggered arrival over ~10 s, like a real crowd.
-  await sleep(Math.random() * 10_000);
-  const phones: string[] = [];
-  for (let p = 0; p < PHONES; p++) {
-    const { res } = await call("/api/auth/login", null, { code, password: pw[code] });
-    const c = res?.headers.get("set-cookie")?.split(";")[0];
-    if (!c) {
-      errors.push(`${code}: login failed`);
-      return "login-failed";
-    }
-    phones.push(c);
+  // Staggered arrival over ~10 s like a real crowd — or everyone at once with --burst.
+  if (!BURST) await sleep(Math.random() * 10_000);
+  const logins = await Promise.all(
+    Array.from({ length: PHONES }, () => call("/api/auth/login", null, { code, password: pw[code] })),
+  );
+  const phones = logins.map(({ res }) => res?.headers.get("set-cookie")?.split(";")[0]).filter((c): c is string => !!c);
+  if (phones.length < PHONES) {
+    errors.push(`${code}: ${PHONES - phones.length} login(s) failed`);
+    if (!phones.length) return "login-failed";
   }
   const main = phones[0];
 
@@ -95,6 +96,7 @@ async function playTeam(code: string, team: Awaited<ReturnType<typeof loadTeams>
   });
 
   let s = (await call("/api/state", main)).json;
+  if (s?.startedAt) startTimes.push(s.startedAt);
   await call("/api/attendance", main, { presentIds: s.members.map((m: { id: number }) => m.id), pin: process.env.ATTENDANCE_PIN || "2468" });
 
   let guard = 0;
@@ -123,22 +125,24 @@ async function playTeam(code: string, team: Awaited<ReturnType<typeof loadTeams>
     const correct = q.kind === "mcq" ? q.answers : q.answers.split("|")[0];
     // A few teams get one text question wrong; one team in five gets an MCQ wrong (45 s lock).
     if (q.kind === "text" && s.questionNo === 1 && tIndex % 3 === 0 && s.stage === 0) {
-      const r = (await call("/api/answer", main, { answer: "definitely wrong" })).json;
+      const r = (await call("/api/answer", main, { answer: "definitely wrong", stage: s.stage, questionNo: s.questionNo })).json;
       if (r?.status !== "wrong") errors.push(`${code}: wrong text answer gave ${r?.status}`);
       await sleep((s.lockSeconds?.text ?? 5) * 1000 + 300);
     }
     if (q.kind === "mcq" && !wrongMcqDone && tIndex % 5 === 0) {
       wrongMcqDone = true;
       const bad = (JSON.parse(q.options) as string[]).find((o) => o !== q.answers)!;
-      const r = (await call("/api/answer", main, { answer: bad })).json;
+      const r = (await call("/api/answer", main, { answer: bad, stage: s.stage, questionNo: s.questionNo })).json;
       if (r?.status !== "wrong") errors.push(`${code}: wrong MCQ gave ${r?.status}`);
-      const blocked = (await call("/api/answer", main, { answer: q.answers })).json;
+      const blocked = (await call("/api/answer", main, { answer: q.answers, stage: s.stage, questionNo: s.questionNo })).json;
       if (blocked?.status !== "cooldown") errors.push(`${code}: MCQ lock not enforced (${blocked?.status})`);
       await sleep((s.lockSeconds?.mcq ?? 45) * 1000 + 300);
     }
     await sleep(800 + Math.random() * 1500); // thinking time
-    const r = (await call("/api/answer", main, { answer: correct })).json;
-    if (r?.status !== "correct") errors.push(`${code}: ${q.kind} answer gave ${r?.status} on T${q.trackId}Q${q.slot}`);
+    const r = (await call("/api/answer", main, { answer: correct, stage: s.stage, questionNo: s.questionNo })).json;
+    const movedOn = r?.state && (r.state.stage !== s.stage || r.state.questionNo !== s.questionNo || r.state.phase === "finished");
+    if (r?.status === "stale" && movedOn) dupIgnored++; // a delayed retry of an answer that already counted
+    else if (r?.status !== "correct") errors.push(`${code}: ${q.kind} answer gave ${r?.status} on T${q.trackId}Q${q.slot}`);
   }
   polling = false;
   await Promise.all(pollers);
@@ -178,12 +182,17 @@ async function main() {
 
   const finished = results.filter((r) => r === "finished").length;
   console.log(`\nDone in ${secs}s — finished: ${finished}/${teams.length}  (${results.filter((r) => r !== "finished").join(", ") || "all finished"})`);
-  console.log(`Requests: ${samples.length}, failed (seen by players): ${samples.filter((s) => !s.ok).length}, silently retried: ${retried}`);
+  console.log(`Requests: ${samples.length}, failed (seen by players): ${samples.filter((s) => !s.ok).length}, silently retried: ${retried}, duplicate answers safely ignored: ${dupIgnored}`);
   const eps = [...new Set(samples.map((s) => s.ep))];
   console.log("\nendpoint              n     p50    p95    max");
   for (const ep of eps) {
     const ms = samples.filter((s) => s.ep === ep).map((s) => s.ms);
     console.log(`${ep.padEnd(20)} ${String(ms.length).padStart(4)} ${String(pct(ms, 50)).padStart(6)} ${String(pct(ms, 95)).padStart(6)} ${String(Math.max(...ms)).padStart(6)}  ms`);
+  }
+  if (startTimes.length) {
+    const spread = (Math.max(...startTimes) - Math.min(...startTimes)) / 1000;
+    console.log(`
+Clock start: ${startTimes.length} teams, first-to-last login spread ${spread.toFixed(1)} s (each team's clock starts at its own login)`);
   }
   if (errors.length) console.log(`\nErrors (${errors.length}):\n  ` + [...new Set(errors)].slice(0, 25).join("\n  "));
 
