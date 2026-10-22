@@ -44,7 +44,7 @@ export function GameClient({ initial }: { initial: TeamState }) {
 
   // Keep all teammates' phones in sync.
   useEffect(() => {
-    const id = setInterval(() => document.visibilityState === "visible" && refresh(), 8000);
+    const id = setInterval(() => document.visibilityState === "visible" && refresh(), 10000);
     const onVis = () => document.visibilityState === "visible" && refresh();
     document.addEventListener("visibilitychange", onVis);
     return () => {

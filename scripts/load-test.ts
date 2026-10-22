@@ -90,7 +90,7 @@ async function playTeam(code: string, team: Awaited<ReturnType<typeof loadTeams>
   let polling = true;
   const pollers = phones.slice(1).map(async (c) => {
     while (polling) {
-      await sleep(8000 + Math.random() * 1000);
+      await sleep(10000 + Math.random() * 1000);
       if (polling) await call("/api/state", c);
     }
   });
