@@ -546,21 +546,21 @@ const PILLAR_SCENARIOS: [string, string][] = [
 /** Final question of the hunt (slot 4 of the last arena): IEEE SB VU knowledge with a takeaway. */
 const IEEE_FINALS: GenQ[] = [
   { kind: "mcq", prompt: "IEEE SB VU is a student branch of IEEE. What does IEEE stand for?", answers: "Institute of Electrical and Electronics Engineers", options: ["Institute of Electrical and Electronics Engineers", "International Electronics and Engineering Exchange", "Institute of Electronic Equipment Engineers", "Indian Electrical Engineering Establishment"] },
-  { kind: "text", prompt: "Complete IEEE's tagline, which IEEE SB VU lives by: \"Advancing Technology for ______\"  (one word)", answers: "Humanity" },
+  { kind: "mcq", prompt: "Complete IEEE's tagline, which IEEE SB VU lives by: \"Advancing Technology for ______\"", answers: "Humanity", options: ["Humanity", "Industry", "Profit", "Speed"] },
   { kind: "mcq", prompt: "IEEE SB VU helps you publish research. IEEE's digital library of research papers is called…", answers: "IEEE Xplore", options: ["IEEE Xplore", "IEEE Explorer", "IEEE Library Pro", "IEEE Archive"] },
-  { kind: "text", prompt: "Before a research paper is published, experts check it. This process is called ____ review.  (one word)", answers: "Peer" },
+  { kind: "mcq", prompt: "Before a research paper is published, experts check it. This process is called ____ review.", answers: "Peer", options: ["Peer", "Public", "Price", "Press"] },
   { kind: "mcq", prompt: "IEEE SB VU supports patents. What does a patent protect?", answers: "An invention", options: ["An invention", "A company logo", "A song's lyrics", "A website's domain"] },
   { kind: "mcq", prompt: "Before filing a patent, you search whether your idea already exists. This existing knowledge is called…", answers: "Prior art", options: ["Prior art", "Open source", "Fine print", "Public domain"] },
   { kind: "mcq", prompt: "Patent tip from IEEE SB VU: what should you do BEFORE showing your invention publicly?", answers: "File a patent application", options: ["File a patent application", "Post it on social media", "Sell it online", "Present it at a fest"] },
-  { kind: "text", prompt: "IEEE SB VU supports startups. The very first money raised to start a company is called ____ funding.  (one word)", answers: "Seed" },
+  { kind: "mcq", prompt: "IEEE SB VU supports startups. The very first money raised to start a company is called ____ funding.", answers: "Seed", options: ["Seed", "Final", "Exit", "Annual"] },
   { kind: "mcq", prompt: "IEEE SB VU helps founders build an MVP. What does MVP stand for?", answers: "Minimum Viable Product", options: ["Minimum Viable Product", "Most Valuable Player", "Maximum Value Proposal", "Main Version Prototype"] },
   { kind: "mcq", prompt: "A short presentation you show investors to explain your startup is called a…", answers: "Pitch deck", options: ["Pitch deck", "Balance sheet", "Patent claim", "Code review"] },
   { kind: "mcq", prompt: "IEEE SB VU conducts hackathons. A hackathon is best described as…", answers: "A time-bound event to build solutions in teams", options: ["A time-bound event to build solutions in teams", "A cyber-attack competition", "A typing speed test", "A sports tournament"] },
-  { kind: "text", prompt: "IEEEXtreme is a global IEEE programming competition that lasts how many hours?  (number)", answers: "24" },
+  { kind: "mcq", prompt: "IEEEXtreme is a global IEEE programming competition that lasts how many hours?", answers: "24", options: ["24", "12", "48", "6"] },
   { kind: "mcq", prompt: "In a hackathon, the first working model of your idea is called a…", answers: "Prototype", options: ["Prototype", "Patent", "Prospectus", "Protocol"] },
   { kind: "mcq", prompt: "IEEE SB VU builds a tech community. IEEE WIE stands for…", answers: "Women in Engineering", options: ["Women in Engineering", "Workshop in Electronics", "World IEEE Event", "Wireless Internet Engineering"] },
   { kind: "mcq", prompt: "Every IEEE Student Branch, including IEEE SB VU, is guided by a faculty member called the Branch…", answers: "Counselor", options: ["Counselor", "Director", "Principal", "Sponsor"] },
-  { kind: "text", prompt: "India belongs to IEEE Region number ____. (IEEE SB VU is part of it.)  (number)", answers: "10|ten|region 10" },
+  { kind: "mcq", prompt: "India belongs to which IEEE Region? (IEEE SB VU is part of it.)", answers: "Region 10", options: ["Region 10", "Region 1", "Region 7", "Region 8"] },
   { kind: "mcq", prompt: "IEEE SB VU members can join IEEE Societies. Which society focuses on computing and software?", answers: "IEEE Computer Society", options: ["IEEE Computer Society", "IEEE Power & Energy Society", "IEEE Photonics Society", "IEEE Oceanic Engineering Society"] },
   { kind: "mcq", prompt: "IEEE standards power everyday tech. IEEE 802.11 is better known as…", answers: "Wi-Fi", options: ["Wi-Fi", "Bluetooth", "USB", "HDMI"] },
   { kind: "mcq", prompt: "IEEE 802.3 is the standard for wired networking known as…", answers: "Ethernet", options: ["Ethernet", "Wi-Fi", "5G", "Zigbee"] },
@@ -569,7 +569,7 @@ const IEEE_FINALS: GenQ[] = [
   { kind: "mcq", prompt: "IEEE SIGHT, which student branches like IEEE SB VU can join, focuses on…", answers: "Technology for humanitarian causes", options: ["Technology for humanitarian causes", "Eye care research", "Sightseeing trips", "Video game design"] },
   { kind: "mcq", prompt: "IEEE's flagship magazine about technology news and ideas is…", answers: "IEEE Spectrum", options: ["IEEE Spectrum", "IEEE Times", "Tech Weekly", "IEEE Gazette"] },
   { kind: "mcq", prompt: "IEEE is known as the world's largest…", answers: "Technical professional organisation", options: ["Technical professional organisation", "Electronics manufacturer", "Software company", "University network"] },
-  { kind: "text", prompt: "IEEE members, including IEEE SB VU members, follow the IEEE Code of ______.  (one word)", answers: "Ethics" },
+  { kind: "mcq", prompt: "IEEE members, including IEEE SB VU members, follow the IEEE Code of ______.", answers: "Ethics", options: ["Ethics", "Silence", "Secrecy", "Profit"] },
   { kind: "mcq", prompt: "How is \"IEEE\" usually pronounced?", answers: "Eye-triple-E", options: ["Eye-triple-E", "Eee-ee-ee-ee", "I-E-E-E-E", "Ieee"] },
   { kind: "mcq", prompt: "IEEE Day celebrates the first time IEEE's founders gathered. In which month is it celebrated?", answers: "October", options: ["October", "January", "March", "July"] },
   { kind: "mcq", prompt: "Zigbee, used in smart-home devices, is built on which IEEE standard?", answers: "IEEE 802.15.4", options: ["IEEE 802.15.4", "IEEE 754", "IEEE 1394", "IEEE 802.3"] },
@@ -580,12 +580,38 @@ const IEEE_FINALS: GenQ[] = [
   { kind: "mcq", prompt: "IEEE SB VU supports patents. Who owns the rights granted by a patent?", answers: "The patent holder", options: ["The patent holder", "Anyone who reads it", "The internet", "The first buyer"] },
   { kind: "mcq", prompt: "A startup's \"runway\" means…", answers: "How long its money will last", options: ["How long its money will last", "Its office corridor", "Its launch-day event", "Its website loading speed"] },
   { kind: "mcq", prompt: "Which IEEE SB VU pillar is all about building in a team under a strict time limit?", answers: "Hackathons", options: ["Hackathons", "Patent filing support", "Research support", "Startup funding support"] },
-  { kind: "text", prompt: "IEEE SB VU helps you publish. A list of the sources you used in a research paper is called the ______.  (one word)", answers: "References|Reference|Bibliography|Citations" },
+  { kind: "mcq", prompt: "IEEE SB VU helps you publish. The list of sources you used in a research paper is called the…", answers: "References", options: ["References", "Abstract", "Appendix", "Title page"] },
   { kind: "mcq", prompt: "IEEE SB VU builds a community. IEEE Young Professionals is a group for…", answers: "Early-career engineers and graduates", options: ["Early-career engineers and graduates", "School children only", "Retired engineers only", "Company CEOs only"] },
 ];
 
 const FINAL_TAKEAWAY =
   "IEEE SB VU is more than research — we back your patents, help fund your startup, build a tech community around you and run hackathons. Join us!";
+
+/* ---------------- typed puzzle → multiple choice ---------------- */
+
+/** Turns a typed-answer puzzle into a 4-option MCQ with believable wrong options. */
+function toMcq(q: GenQ): GenQ {
+  const prompt = q.prompt
+    .replace(/\s*\((number|one word|one letter|number, in ₹)\)\s*$/i, "")
+    .replace("Enter that number.", "Which number is it?")
+    .replace(/\s*\(letters separated by spaces\)/, "")
+    .trim();
+  const ans = q.answers.split("|")[0];
+  let wrong: string[];
+  if (/^\d+$/.test(ans)) {
+    const n = Number(ans);
+    wrong = nearby(n, Math.max(3, Math.min(25, Math.round(n * 0.15)))).map(String);
+  } else if (/^[A-Z]$/.test(ans)) {
+    const i = LETTERS.indexOf(ans);
+    const near = [-3, -2, -1, 1, 2, 3].map((d) => LETTERS[i + d]).filter((l) => l && l !== ans);
+    wrong = sample(near, 3);
+  } else {
+    const pool = [...new Set([...WORDS, ...SHORT_WORDS])].filter((w) => w !== ans);
+    const sameLen = pool.filter((w) => w.length === ans.length);
+    wrong = sample(sameLen.length >= 3 ? sameLen : pool, 3);
+  }
+  return mcq(prompt, ans, wrong);
+}
 
 /* ---------------- assembly ---------------- */
 
@@ -593,6 +619,18 @@ export function generateQuestionSet(teams: { id: number; order: number[] }[], se
   rand = mulberry32(seed);
   const used = new Set<string>();
   const out: (GenQ & { teamId: number; trackId: number; slot: number })[] = [];
+
+  function tryUnique(make: () => GenQ, tries: number): GenQ | null {
+    for (let i = 0; i < tries; i++) {
+      const q = make();
+      const key = q.prompt + "||" + [...(q.options ?? [])].sort().join("|");
+      if (!used.has(key)) {
+        used.add(key);
+        return q;
+      }
+    }
+    return null;
+  }
 
   function unique(make: () => GenQ): GenQ {
     for (let i = 0; i < 5000; i++) {
@@ -606,7 +644,21 @@ export function generateQuestionSet(teams: { id: number; order: number[] }[], se
     }
     throw new Error("Ran out of unique questions");
   }
-  const themed = (arena: number, kind: "text" | "mcq") => unique(() => pick(THEMED[arena][kind])());
+  // Every arena question is multiple choice; typed-style puzzles are converted to 4 options.
+  // usedGens keeps a team from getting the same kind of puzzle twice in one arena.
+  const themed = (arena: number, kind: "text" | "mcq", usedGens: Set<() => GenQ>) => {
+    const all = THEMED[arena][kind];
+    const fresh = shuffle(all.filter((g) => !usedGens.has(g)));
+    // Prefer a puzzle type this team hasn't had in this arena; fall back if a type is used up.
+    for (const gen of [...fresh, ...shuffle(all)]) {
+      const q = tryUnique(() => (kind === "text" ? toMcq(gen()) : gen()), 300);
+      if (q) {
+        usedGens.add(gen);
+        return q;
+      }
+    }
+    throw new Error("Ran out of unique questions");
+  };
 
   // Riddle clue pairs are dealt so no two teams get the same riddle.
   const riddle = (next: number) =>
@@ -630,10 +682,11 @@ export function generateQuestionSet(teams: { id: number; order: number[] }[], se
       const last = stage === team.order.length - 1;
       const push = (slot: number, q: GenQ) => out.push({ ...q, teamId: team.id, trackId, slot });
 
-      push(1, themed(trackId, "text"));
-      push(2, themed(trackId, "mcq"));
+      const usedGens = new Set<() => GenQ>();
+      push(1, themed(trackId, "text", usedGens));
+      push(2, themed(trackId, "mcq", usedGens));
       if (!last) {
-        push(3, themed(trackId, (ti + stage) % 2 === 0 ? "text" : "mcq"));
+        push(3, themed(trackId, (ti + stage) % 2 === 0 ? "text" : "mcq", usedGens));
         push(4, riddle(team.order[stage + 1]));
       } else {
         const [prompt, correct] = scenarios[ti];

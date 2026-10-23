@@ -124,7 +124,7 @@ async function playTeam(code: string, team: Awaited<ReturnType<typeof loadTeams>
     const q = team.questions.find((x) => x.trackId === s.current.track.id && x.slot === s.questionNo)!;
     const correct = q.kind === "mcq" ? q.answers : q.answers.split("|")[0];
     // A few teams get one text question wrong; one team in five gets an MCQ wrong (45 s lock).
-    if (q.kind === "text" && s.questionNo === 1 && tIndex % 3 === 0 && s.stage === 0) {
+    if (q.kind === "text" && tIndex % 3 === 0 && s.stage === 0) {
       const r = (await call("/api/answer", main, { answer: "definitely wrong", stage: s.stage, questionNo: s.questionNo })).json;
       if (r?.status !== "wrong") errors.push(`${code}: wrong text answer gave ${r?.status}`);
       await sleep((s.lockSeconds?.text ?? 5) * 1000 + 300);
