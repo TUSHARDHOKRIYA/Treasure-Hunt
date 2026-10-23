@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { db } from "@/lib/db";
-import { config, STATIONS } from "@/lib/config";
+import { STATIONS } from "@/lib/config";
+import { getBaseUrl } from "@/lib/base-url";
 import { parseOrder } from "@/lib/schedule";
 import { PrintButton } from "@/components/admin/PrintButton";
 
@@ -10,6 +11,7 @@ const INVALID_TOKEN = "notarealcode";
 type Qr = { label: string; trackId: number; station: string; color: string; trackName: string; svg: string };
 
 export default async function TestKitPage() {
+  const baseUrl = await getBaseUrl();
   const [qrs, teams] = await Promise.all([
     db.qrCode.findMany({ include: { track: true }, orderBy: [{ trackId: "asc" }, { station: "asc" }] }),
     db.team.findMany({
@@ -27,10 +29,10 @@ export default async function TestKitPage() {
       station: q.station,
       color: q.track.color,
       trackName: q.track.name,
-      svg: await svg(`${config.publicBaseUrl}/s/${q.token}`),
+      svg: await svg(`${baseUrl}/s/${q.token}`),
     })),
   );
-  const invalidSvg = await svg(`${config.publicBaseUrl}/s/${INVALID_TOKEN}`);
+  const invalidSvg = await svg(`${baseUrl}/s/${INVALID_TOKEN}`);
 
   return (
     <div className="space-y-8">
@@ -40,8 +42,7 @@ export default async function TestKitPage() {
           <h1 className="mt-1 text-3xl font-bold tracking-tight">QR test kit</h1>
           <p className="mt-1 max-w-2xl text-sm text-ink-400">
             Scan these from a phone signed in as {TEST_TEAMS.join(" or ")}. Codes point to{" "}
-            <span className="font-mono text-ink-300">{config.publicBaseUrl}</span> — if that isn&apos;t your live URL, set <span className="font-mono">PUBLIC_BASE_URL</span> and
-            redeploy. Use the in-app &ldquo;Scan QR code&rdquo; button; the phone camera app works too.
+            <span className="font-mono text-ink-300">{baseUrl}</span>. Use the in-app &ldquo;Scan QR code&rdquo; button; the phone camera app works too.
           </p>
         </div>
         <div className="md:w-48">

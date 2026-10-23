@@ -1,13 +1,14 @@
 import QRCode from "qrcode";
 import { db } from "@/lib/db";
-import { config } from "@/lib/config";
+import { getBaseUrl } from "@/lib/base-url";
 import { PrintButton } from "@/components/admin/PrintButton";
 
 export default async function QrPage() {
+  const baseUrl = await getBaseUrl();
   const qrs = await db.qrCode.findMany({ include: { track: true }, orderBy: [{ trackId: "asc" }, { station: "asc" }] });
   const items = await Promise.all(
     qrs.map(async (q) => {
-      const url = `${config.publicBaseUrl}/s/${q.token}`;
+      const url = `${baseUrl}/s/${q.token}`;
       return { ...q, url, svg: await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) };
     }),
   );
@@ -19,8 +20,7 @@ export default async function QrPage() {
           <p className="text-xs font-semibold uppercase tracking-[.2em] text-gold-400">Print & place</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">QR stations</h1>
           <p className="mt-1 max-w-xl text-sm text-ink-400">
-            12 posters — 3 stations per track. Each prints on its own page. Codes point to <span className="font-mono text-ink-300">{config.publicBaseUrl}</span>{" "}
-            (set <span className="font-mono">PUBLIC_BASE_URL</span> to your live URL before printing).
+            12 posters — 3 stations per arena. Each prints on its own page. Codes point to <span className="font-mono text-ink-300">{baseUrl}</span> — the site you&apos;re on now.
           </p>
         </div>
         <div className="flex flex-col gap-2 md:w-48">
@@ -38,7 +38,7 @@ export default async function QrPage() {
             className="card flex flex-col items-center p-6 text-center print:mb-0 print:flex print:h-screen print:break-after-page print:justify-center print:rounded-none print:border-0 print:bg-white print:text-black"
           >
             <p className="text-xs font-bold uppercase tracking-[.25em]" style={{ color: q.track.color }}>
-              Track {q.trackId}
+              Arena {q.trackId}
             </p>
             <h2 className="mt-1 text-2xl font-bold print:text-5xl">{q.track.name}</h2>
             <div className="my-5 w-full max-w-[240px] rounded-2xl bg-white p-3 print:max-w-[420px]" dangerouslySetInnerHTML={{ __html: q.svg }} />
