@@ -324,7 +324,9 @@ function AttendanceView({ state, onDone }: { state: TeamState; onDone: () => voi
       <button className="btn-primary" disabled={busy || present.length === 0 || (state.pinRequired && !pin)} onClick={submit}>
         {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Mark attendance ({present.length}/{state.members.length})</>}
       </button>
-      {state.startedAt && <p className="text-center text-xs text-ink-500">Your clock is already running — check in quickly!</p>}
+      <p className="text-center text-xs text-ink-500">
+        {state.startedAt ? "Your clock is already running — check in quickly!" : "Your clock starts the moment attendance is confirmed."}
+      </p>
     </div>
   );
 }

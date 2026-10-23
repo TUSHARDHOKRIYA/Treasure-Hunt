@@ -1,13 +1,18 @@
-import { Download, FileSpreadsheet, QrCode, RefreshCcw, RotateCcw, Save } from "lucide-react";
+import { Clock, Download, FileSpreadsheet, QrCode, RefreshCcw, RotateCcw, Save } from "lucide-react";
 import { db } from "@/lib/db";
-import { config } from "@/lib/config";
+import { getTimerStart } from "@/lib/settings";
 import { SEQUENCES } from "@/lib/schedule";
-import { importQuestions, importTeams, regeneratePlaceholders, regenerateQrCodes, resetAllProgress, updateTrack } from "../../actions";
+import { importQuestions, importTeams, regeneratePlaceholders, regenerateQrCodes, resetAllProgress, setTimerStart, updateTrack } from "../../actions";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { ImportForm } from "@/components/admin/ImportForm";
 
 export default async function SetupPage() {
-  const [tracks, teamCount, qCount] = await Promise.all([db.track.findMany({ orderBy: { id: "asc" } }), db.team.count(), db.question.count()]);
+  const [tracks, teamCount, qCount, timerStart] = await Promise.all([
+    db.track.findMany({ orderBy: { id: "asc" } }),
+    db.team.count(),
+    db.question.count(),
+    getTimerStart(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -20,13 +25,36 @@ export default async function SetupPage() {
         {[
           { k: "Teams", v: teamCount },
           { k: "Questions", v: `${qCount} / ${teamCount * 16}` },
-          { k: "Timer starts at", v: config.timerStart === "login" ? "Login" : "Attendance" },
+          { k: "Timer starts at", v: timerStart === "login" ? "Login" : "Attendance" },
         ].map((s) => (
           <div key={s.k} className="card p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-ink-400">{s.k}</p>
             <p className="mt-1 font-mono text-2xl font-bold">{s.v}</p>
           </div>
         ))}
+      </section>
+
+      <section className="card p-5">
+        <div className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-gold-400" />
+          <h2 className="font-semibold">When does a team&apos;s clock start?</h2>
+        </div>
+        <p className="mt-1 text-sm text-ink-400">
+          &ldquo;At attendance&rdquo; lets you sign every device in before the event — the clock starts only when a volunteer enters the PIN for that team.
+        </p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {(["attendance", "login"] as const).map((mode) => (
+            <ActionButton
+              key={mode}
+              action={setTimerStart.bind(null, mode)}
+              className={`btn h-12 border text-sm ${
+                timerStart === mode ? "border-gold-400 bg-gold-400/10 text-gold-300" : "border-ink-600 bg-ink-850 text-ink-300"
+              }`}
+            >
+              {mode === "attendance" ? "At attendance (PIN)" : "At login"} {timerStart === mode && "✓"}
+            </ActionButton>
+          ))}
+        </div>
       </section>
 
       <section className="card p-5">

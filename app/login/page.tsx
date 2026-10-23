@@ -1,9 +1,12 @@
 import { Suspense } from "react";
 import { LoginForm } from "./LoginForm";
 import { Logo } from "@/components/Logo";
-import { config } from "@/lib/config";
+import { getTimerStart } from "@/lib/settings";
 
-export default function LoginPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage() {
+  const timerStart = await getTimerStart();
   return (
     <main className="bg-hunt flex min-h-dvh flex-col px-5 pt-[max(2.5rem,env(safe-area-inset-top))]">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
@@ -24,8 +27,10 @@ export default function LoginPage() {
         </div>
 
         <p className="safe-bottom mt-auto pt-10 text-center text-xs text-ink-500">
-          {config.timerStart === "login" ? "Your clock starts the moment you sign in." : "Your clock starts once attendance is marked."} Every
-          teammate can sign in on their own phone.
+          {timerStart === "login"
+            ? "Your clock starts the moment you sign in."
+            : "Signing in is safe — your clock starts only when a volunteer confirms your attendance."}{" "}
+          Keep this device with your team.
         </p>
       </div>
     </main>

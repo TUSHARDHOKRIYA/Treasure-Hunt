@@ -2,9 +2,8 @@ import { withErrors } from "@/lib/api";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { config } from "@/lib/config";
 import { setTeamSession } from "@/lib/auth";
-import { isEventOpen } from "@/lib/settings";
+import { getTimerStart, isEventOpen } from "@/lib/settings";
 
 export const POST = withErrors(async function post(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -19,7 +18,7 @@ export const POST = withErrors(async function post(req: Request) {
     return NextResponse.json({ error: "The hunt hasn't started yet. Wait for the organisers' signal." }, { status: 403 });
   }
 
-  if (config.timerStart === "login" && !team.startedAt) {
+  if (!team.startedAt && (await getTimerStart()) === "login") {
     await db.team.updateMany({ where: { id: team.id, startedAt: null }, data: { startedAt: new Date() } });
   }
   await setTeamSession(team.id);

@@ -38,6 +38,12 @@ export async function setEventOpen(open: boolean) {
   revalidatePath("/admin", "layout");
 }
 
+export async function setTimerStart(mode: "login" | "attendance") {
+  await requireAdmin();
+  await setSetting("timerStart", mode);
+  revalidatePath("/admin", "layout");
+}
+
 /* ---------- per-team ---------- */
 
 export async function skipQuestion(teamId: number) {
